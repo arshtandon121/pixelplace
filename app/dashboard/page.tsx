@@ -33,6 +33,11 @@ interface Purchase {
   imageUrl?: string | null
   imageFileId?: string | null
   linkUrl?: string | null
+  status?: 'pending' | 'completed' | 'rejected'
+  rejectionReason?: string
+  refundStatus?: 'requested' | 'processed'
+  refundDetails?: string
+  refundRequestedAt?: Date
 }
 
 function DashboardContent() {
@@ -109,6 +114,41 @@ function DashboardContent() {
       }
     } catch (error) {
       console.error('Failed to load purchases:', error)
+    }
+  }
+
+  const [refundOrderId, setRefundOrderId] = useState<string | null>(null)
+  const [refundDetails, setRefundDetails] = useState('')
+  const [submittingRefund, setSubmittingRefund] = useState(false)
+
+  const submitRefundRequest = async () => {
+    if (!refundOrderId || !refundDetails.trim()) {
+      toast.error('Please enter payment details')
+      return
+    }
+    setSubmittingRefund(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/user/refund', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ orderId: refundOrderId, refundDetails })
+      })
+      if (res.ok) {
+        toast.success('Refund requested successfully')
+        setRefundOrderId(null)
+        setRefundDetails('')
+        loadPurchases()
+      } else {
+        toast.error('Failed to request refund')
+      }
+    } catch (e) {
+      toast.error('Error submitting request')
+    } finally {
+      setSubmittingRefund(false)
     }
   }
 
@@ -280,8 +320,54 @@ function DashboardContent() {
                             <Calendar className="w-3 h-3" />
                             {new Date(purchase.purchasedAt).toLocaleDateString()}
                           </div>
+
+                          {purchase.status === 'rejected' && purchase.rejectionReason && (
+                            <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded p-3 text-xs text-red-300">
+                              <strong>Rejected:</strong> {purchase.rejectionReason}
+                            </div>
+                          )}
+                          <div className="mt-1">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                ${purchase.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
+                                purchase.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                                  'bg-yellow-500/20 text-yellow-400'}`}>
+                              {purchase.status || 'manual'}
+                            </span>
+                          </div>
                         </div>
                       </div>
+
+                      {purchase.status === 'rejected' && (
+                        <div className="mt-3 pt-3 border-t border-white/5">
+                          {purchase.refundStatus === 'processed' ? (
+                            <div className="text-emerald-400 text-xs font-bold flex items-center gap-2 bg-emerald-500/10 p-2 rounded border border-emerald-500/20">
+                              <CheckCircle className="w-4 h-4" />
+                              <div>
+                                <div>Refund Processed</div>
+                                <div className="font-normal opacity-80 text-[10px]">Credited in 1-2 business days</div>
+                              </div>
+                            </div>
+                          ) : purchase.refundStatus === 'requested' ? (
+                            <div className="text-yellow-400 text-xs font-bold flex items-center gap-2 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">
+                              <div className="animate-pulse w-2 h-2 rounded-full bg-yellow-400" />
+                              Refund Requested
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setRefundOrderId(purchase.orderId)}
+                              className="w-full text-xs bg-red-500/10 text-red-400 border border-red-500/30 py-2 rounded hover:bg-red-500/20 transition font-bold"
+                            >
+                              Request Refund
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {purchase.status === 'rejected' && purchase.rejectionReason && (
+                        <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded p-3 text-xs text-red-300 mt-2">
+                          <strong>Rejected:</strong> {purchase.rejectionReason}
+                        </div>
+                      )}
 
                       <div className="space-y-3 mb-4 flex-1">
                         <div className="text-xs font-mono text-slate-500 bg-slate-950/50 p-2 rounded border border-white/5 truncate">
@@ -321,7 +407,49 @@ function DashboardContent() {
           )}
         </div>
       </main>
-    </div>
+
+      {/* Refund Modal */}
+      {
+        refundOrderId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl animate-fade-in relative">
+              <h3 className="text-xl font-bold text-white mb-2">Request Refund</h3>
+              <p className="text-sm text-slate-400 mb-4">
+                Please provide your UPI ID or Binance Pay ID where you would like to receive the refund.
+              </p>
+
+              <input
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white text-sm mb-4 focus:ring-2 focus:ring-cyan-500 outline-none"
+                placeholder="e.g. user@upl or Binance ID 123456"
+                value={refundDetails}
+                onChange={(e) => setRefundDetails(e.target.value)}
+                autoFocus
+              />
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setRefundOrderId(null)
+                    setRefundDetails('')
+                  }}
+                  className="px-4 py-2 text-slate-400 hover:text-white font-medium"
+                  disabled={submittingRefund}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitRefundRequest}
+                  disabled={submittingRefund || !refundDetails.trim()}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg font-bold transition hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {submittingRefund ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   )
 }
 

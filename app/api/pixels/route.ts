@@ -7,17 +7,17 @@ export async function GET() {
     // Cache headers for better performance
     const pixels = await getAllPixels()
     const queryTime = Date.now() - startTime
-    
+
     console.log(`✅ Fetched ${pixels.length} pixels in ${queryTime}ms`)
-    
+
     return NextResponse.json(
-      { 
+      {
         pixels,
         count: pixels.length,
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'Cache-Control': 'no-store, max-age=0',
         },
       }
     )

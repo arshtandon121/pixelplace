@@ -30,7 +30,7 @@ export default function PixelLogo({ size = 'md', showText = true, className = ''
         style={{ width: `${width}px`, height: `${height}px` }}
       >
         <Image
-          src="/logo.png?v=2"
+          src="/logo1.png"
           alt="PixelPlace.in Logo"
           width={width}
           height={height}

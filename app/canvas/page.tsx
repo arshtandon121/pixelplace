@@ -33,6 +33,10 @@ export default function CanvasPage() {
   const [selectedPixels, setSelectedPixels] = useState<{ x: number; y: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [linkUrl, setLinkUrl] = useState<string>('')
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -40,6 +44,9 @@ export default function CanvasPage() {
   const [showCropper, setShowCropper] = useState(false)
   const [tempImage, setTempImage] = useState<string | null>(null)
   const [fitImage, setFitImage] = useState(false)
+
+  // Payment Method State
+  const [paymentMethod, setPaymentMethod] = useState<'binance' | 'upi'>('binance')
 
   // Calculate available blocks (blocks that are completely empty)
   const availableBlocks = useMemo(() => {
@@ -238,8 +245,27 @@ export default function CanvasPage() {
       return
     }
 
+    // Open Payment Modal
+    setShowPaymentModal(true)
+  }
+
+  const submitManualOrder = async () => {
+    if (!screenshotFile) {
+      toast.error('Please upload payment screenshot')
+      return
+    }
+
     setCheckoutLoading(true)
     try {
+      let screenshotBase64 = ''
+      if (screenshotFile) {
+        screenshotBase64 = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(screenshotFile)
+        })
+      }
+
       const token = localStorage.getItem('token')
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -252,94 +278,35 @@ export default function CanvasPage() {
           imageUrl: uploadedImage,
           linkUrl: linkUrl || undefined,
           tenure,
+          screenshot: screenshotBase64
         }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error || 'Failed to create payment order')
+        toast.error(data.error || 'Failed to submit order')
         setCheckoutLoading(false)
         return
       }
 
-      if (!data.keyId) {
-        toast.error('Razorpay key ID is missing. Please check your configuration.')
-        setCheckoutLoading(false)
-        return
+      if (data.success) {
+        toast.success('Order submitted! Verification takes 12-24 hours.')
+        setSelectedPixels([])
+        setUploadedImage(null)
+        setLinkUrl('')
+        setTenure(1)
+        setScreenshotFile(null)
+        setShowPaymentModal(false)
+        loadPixels()
+        router.push('/dashboard')
+      } else {
+        toast.error('Unknown response from server')
       }
-
-      if (!window.Razorpay) {
-        toast.error('Razorpay SDK not loaded. Please refresh the page.')
-        setCheckoutLoading(false)
-        return
-      }
-
-      const options = {
-        key: data.keyId,
-        amount: data.amount,
-        currency: data.currency,
-        name: 'PixelPlace.in',
-        description: `Purchase ${selectedPixels.length} pixel${selectedPixels.length > 1 ? 's' : ''} for ${tenure} month${tenure > 1 ? 's' : ''}`,
-        order_id: data.orderId,
-        handler: async function (response: any) {
-          // Verify payment on server
-          const verifyRes = await fetch('/api/payment/verify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              orderId: response.razorpay_order_id,
-              paymentId: response.razorpay_payment_id,
-              signature: response.razorpay_signature,
-              pixels: selectedPixels,
-              imageUrl: uploadedImage, // Still pass it as fallback
-              linkUrl: linkUrl || undefined,
-              tempOrderId: data.tempOrderId, // Pass tempOrderId to retrieve from DB
-            }),
-          })
-
-          const verifyData = await verifyRes.json()
-          if (verifyRes.ok) {
-            toast.success('Payment successful! Your logo is now visible on the canvas.')
-            setSelectedPixels([])
-            setUploadedImage(null)
-            setLinkUrl('')
-            setTenure(1)
-            loadPixels()
-            router.push('/dashboard?success=true')
-          } else {
-            toast.error(verifyData.error || 'Payment verification failed')
-          }
-        },
-        prefill: {
-          name: user?.name || '',
-          email: user?.email || '',
-        },
-        theme: {
-          color: '#0ea5e9',
-        },
-        modal: {
-          ondismiss: function () {
-            setCheckoutLoading(false)
-          },
-        },
-      }
-
-      const razorpay = new window.Razorpay(options)
-
-      razorpay.on('payment.failed', function (response: any) {
-        console.error('Payment failed:', response.error)
-        toast.error(`Payment failed: ${response.error.description || 'Unknown error'}`)
-        setCheckoutLoading(false)
-      })
-
-      razorpay.open()
-      setCheckoutLoading(false)
     } catch (error) {
+      console.error('Checkout error:', error)
       toast.error('Something went wrong')
+    } finally {
       setCheckoutLoading(false)
     }
   }
@@ -610,9 +577,9 @@ export default function CanvasPage() {
                   <button
                     onClick={handleCheckout}
                     disabled={checkoutLoading || !uploadedImage}
-                    className="w-full pixel-button text-white py-4 rounded-xl font-bold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all transform hover:scale-105 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center gap-2 border border-emerald-400/30"
                   >
-                    <ShoppingCart className="w-5 h-5" />
+                    <ShoppingCart className="w-6 h-6" />
                     {checkoutLoading ? 'Processing...' : uploadedImage ? 'Proceed to Payment' : 'Upload Image First'}
                   </button>
 
@@ -639,6 +606,153 @@ export default function CanvasPage() {
           </div>
         </main>
       </div>
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="pixel-card bg-slate-900 border border-cyan-500/30 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-1">Make Payment</h2>
+                  <p className="text-cyan-400 text-sm">Select payment method below</p>
+                </div>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="text-slate-400 hover:text-white transition"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-white/10 mb-6">
+                <button
+                  onClick={() => setPaymentMethod('binance')}
+                  className={`flex-1 pb-3 text-sm font-bold transition relative ${paymentMethod === 'binance' ? 'text-yellow-400' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Binance Pay
+                  {paymentMethod === 'binance' && (
+                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-yellow-400" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setPaymentMethod('upi')}
+                  className={`flex-1 pb-3 text-sm font-bold transition relative ${paymentMethod === 'upi' ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}
+                >
+                  UPI (India)
+                  {paymentMethod === 'upi' && (
+                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />
+                  )}
+                </button>
+              </div>
+
+              <div className="space-y-6">
+
+                {paymentMethod === 'binance' ? (
+                  <>
+                    {/* Binance QR */}
+                    <div className="flex flex-col items-center p-4 bg-white rounded-xl">
+                      <img
+                        src="/payment-qr.png"
+                        alt="Binance QR"
+                        className="w-48 h-48 object-contain"
+                      />
+                    </div>
+                    {/* Binance ID */}
+                    <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-slate-400 text-sm">Binance Pay ID</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText('127476736')
+                            toast.success('Copied!')
+                          }}
+                          className="text-xs text-cyan-400 hover:text-cyan-300 font-mono"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div className="text-xl font-mono text-white tracking-widest">
+                        127476736
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* UPI QR */}
+                    <div className="flex flex-col items-center p-4 bg-white rounded-xl relative overflow-hidden">
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">
+                        Upload QR to public/upi.png
+                      </div>
+                      <img
+                        src="/upi.png"
+                        alt="UPI QR"
+                        className="w-48 h-48 object-contain relative z-10"
+                        onError={(e) => e.currentTarget.style.display = 'none'}
+                      />
+                    </div>
+                    <div className="text-center text-sm text-slate-400">
+                      Scan with any UPI App (GPay, PhonePe, Paytm)
+                    </div>
+                  </>
+                )}
+
+                {/* Amount */}
+                <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                  <span className="text-slate-300">Total Amount</span>
+                  <span className="text-2xl font-bold text-cyan-400">₹{selectedPixels.length * PIXEL_PRICE_PER_MONTH * tenure}</span>
+                </div>
+
+                {/* Screenshot Upload */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-2">
+                    Upload Payment Proof
+                  </label>
+
+                  {!screenshotFile ? (
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-cyan-500/30 rounded-xl cursor-pointer hover:border-cyan-400 hover:bg-cyan-500/5 transition">
+                      <Upload className="w-8 h-8 text-cyan-500 mb-2" />
+                      <span className="text-sm text-cyan-400">Click to upload proof</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) setScreenshotFile(e.target.files[0])
+                        }}
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-cyan-900/20 border border-cyan-500/30 rounded-lg">
+                      <span className="text-cyan-300 text-sm truncate max-w-[200px]">
+                        {screenshotFile.name}
+                      </span>
+                      <button
+                        onClick={() => setScreenshotFile(null)}
+                        className="text-red-400 hover:text-red-300 p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={submitManualOrder}
+                  disabled={checkoutLoading || !screenshotFile}
+                  className="w-full pixel-button text-white py-4 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+                >
+                  {checkoutLoading ? 'Submitting...' : 'Submit Payment Proof'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   )
 }

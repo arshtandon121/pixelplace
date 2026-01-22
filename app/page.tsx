@@ -129,15 +129,9 @@ export default function Home() {
         </div>
 
         {/* Canvas Preview */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="mb-32 flex justify-center perspective-1000"
-        >
-          <div className="glass-panel p-8 relative group shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-tr from-primary-500/10 to-secondary-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="mb-32 flex justify-center perspective-1000 overflow-x-auto">
+          <div className="glass-panel p-8 relative group shadow-2xl min-w-[650px]">
+            <div className="absolute inset-0 bg-gradient-to-tr from-primary-500/10 to-secondary-500/10 rounded-xl opacity-100" />
 
             <div className="flex justify-between items-center mb-6 relative z-10">
               <div>
@@ -163,7 +157,7 @@ export default function Home() {
               />
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Features */}
         <div id="features" className="grid md:grid-cols-3 gap-8 mb-24">
