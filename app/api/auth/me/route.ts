@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken, getUserById } from '@/lib/auth'
 
+
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    
+
     if (!token) {
       return NextResponse.json(
         { error: 'Unauthorized' },
