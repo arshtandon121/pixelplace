@@ -39,6 +39,7 @@ export default function CanvasPage() {
   const [tenure, setTenure] = useState(1)
   const [showCropper, setShowCropper] = useState(false)
   const [tempImage, setTempImage] = useState<string | null>(null)
+  const [fitImage, setFitImage] = useState(false)
 
   // Calculate available blocks (blocks that are completely empty)
   const availableBlocks = useMemo(() => {
@@ -454,6 +455,7 @@ export default function CanvasPage() {
                   onPixelHover={handlePixelHover}
                   previewImage={uploadedImage}
                   availableBlocks={availableBlocks}
+                  fitImages={fitImage}
                 />
               </div>
             </motion.div>
@@ -560,18 +562,33 @@ export default function CanvasPage() {
                     )}
 
                     {uploadedImage && (
-                      <div className="mt-3">
-                        <label className="block text-sm font-bold pixel-text text-cyan-400 mb-2">
-                          <LinkIcon className="w-4 h-4 inline mr-1" />
-                          Link URL (Optional)
-                        </label>
-                        <input
-                          type="url"
-                          value={linkUrl}
-                          onChange={(e) => setLinkUrl(e.target.value)}
-                          placeholder="https://yourwebsite.com"
-                          className="w-full px-3 py-2 pixel-card border border-cyan-500/30 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 text-sm text-cyan-100 bg-transparent placeholder:text-cyan-500/50"
-                        />
+                      <div className="mt-3 space-y-3">
+                        <div>
+                          <label className="block text-sm font-bold pixel-text text-cyan-400 mb-2">
+                            <LinkIcon className="w-4 h-4 inline mr-1" />
+                            Link URL (Optional)
+                          </label>
+                          <input
+                            type="url"
+                            value={linkUrl}
+                            onChange={(e) => setLinkUrl(e.target.value)}
+                            placeholder="https://yourwebsite.com"
+                            className="w-full px-3 py-2 pixel-card border border-cyan-500/30 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 text-sm text-cyan-100 bg-transparent placeholder:text-cyan-500/50"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="fitImage"
+                            checked={fitImage}
+                            onChange={(e) => setFitImage(e.target.checked)}
+                            className="w-4 h-4 rounded border-cyan-500/30 bg-transparent text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
+                          />
+                          <label htmlFor="fitImage" className="text-sm font-medium text-cyan-300 cursor-pointer select-none">
+                            Fit image to selected area (stretch)
+                          </label>
+                        </div>
                       </div>
                     )}
                   </div>

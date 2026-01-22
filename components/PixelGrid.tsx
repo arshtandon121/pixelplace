@@ -25,6 +25,7 @@ interface PixelGridProps {
   onPixelHover: (x: number, y: number) => void
   previewImage?: string | null
   availableBlocks?: AvailableBlock[]
+  fitImages?: boolean
 }
 
 export default function PixelGrid({
@@ -34,6 +35,7 @@ export default function PixelGrid({
   onPixelHover,
   previewImage,
   availableBlocks = [],
+  fitImages = false,
 }: PixelGridProps) {
   const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null)
 
@@ -380,7 +382,7 @@ export default function PixelGrid({
             <img
               src={overlay.imageUrl}
               alt={`Logo overlay ${index + 1}`}
-              className="w-full h-full object-cover"
+              className={`w-full h-full ${fitImages ? 'object-fill' : 'object-cover'}`}
               style={{
                 imageRendering: 'auto',
                 display: 'block',

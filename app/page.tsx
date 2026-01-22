@@ -136,11 +136,7 @@ export default function Home() {
           transition={{ duration: 0.8 }}
           className="mb-32 flex justify-center perspective-1000"
         >
-          <motion.div
-            whileHover={{ rotateX: 5, rotateY: 5, scale: 1.02 }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="glass-panel p-8 relative group shadow-2xl transform-style-3d"
-          >
+          <div className="glass-panel p-8 relative group shadow-2xl">
             <div className="absolute inset-0 bg-gradient-to-tr from-primary-500/10 to-secondary-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="flex justify-between items-center mb-6 relative z-10">
@@ -166,7 +162,7 @@ export default function Home() {
                 previewImage={null}
               />
             </div>
-          </motion.div>
+          </div>
         </motion.div>
 
         {/* Features */}
@@ -219,6 +215,6 @@ export default function Home() {
           </p>
         </div>
       </footer>
-    </div>
+    </div >
   )
 }
