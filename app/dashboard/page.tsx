@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import { LogOut, CheckCircle, CreditCard, Image as ImageIcon, Box, Layers, Calendar, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import PixelLogo from '@/components/PixelLogo'
+import { PIXEL_PRICE_PER_MONTH } from '@/lib/constants'
 
 interface Pixel {
   _id?: string
@@ -192,7 +193,7 @@ function DashboardContent() {
               </div>
               <div>
                 <div className="text-sm text-slate-400">Total Invested</div>
-                <div className="text-2xl font-bold text-white">${totalSpent.toFixed(2)}</div>
+                <div className="text-2xl font-bold text-white">₹{totalSpent.toFixed(2)}</div>
               </div>
             </div>
             <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
@@ -243,7 +244,7 @@ function DashboardContent() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {purchases.map((purchase) => {
                 const imageSrc = getImageSrc(purchase)
-                const totalPrice = purchase.pixelCount * 1
+                const totalPrice = purchase.pixelCount * PIXEL_PRICE_PER_MONTH
                 return (
                   <div key={purchase._id} className="glass-card group flex flex-col h-full">
                     {/* Image Preview */}
@@ -271,7 +272,7 @@ function DashboardContent() {
                       <div className="flex justify-between items-start mb-4">
                         <div>
                           <div className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Total</div>
-                          <div className="text-xl font-bold text-white">₹{(totalPrice * 83).toFixed(2)}</div>
+                          <div className="text-xl font-bold text-white">₹{totalPrice.toFixed(2)}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Date</div>

@@ -106,9 +106,9 @@ export async function POST(request: NextRequest) {
     })
 
     // Create Razorpay order without imageUrl (to avoid 20KB limit)
-    // amountInPaise is passed as amount (which Razorpay expects in smallest currency unit)
+    // Pass totalAmount in INR, as createRazorpayOrder handles the conversion to paise
     const order = await createRazorpayOrder(
-      amountInPaise,
+      totalAmount,
       pixels.length,
       decoded.userId,
       pixels,

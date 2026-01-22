@@ -351,7 +351,7 @@ export default function PixelGrid({
           <img
             src={previewImage}
             alt={`Preview block ${index + 1}`}
-            className="w-full h-full object-cover opacity-90"
+            className={`w-full h-full opacity-90 ${fitImages ? 'object-fill' : 'object-cover'}`}
             style={{ imageRendering: 'auto' }}
           />
         </div>
