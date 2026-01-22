@@ -5,6 +5,6 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-06-20', // Use latest API version or pin to a specific one
+    apiVersion: '2024-06-20' as any, // Cast to any to bypass TS strict check
     typescript: true,
 });
