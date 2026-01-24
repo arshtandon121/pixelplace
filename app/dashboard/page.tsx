@@ -38,6 +38,7 @@ interface Purchase {
   refundStatus?: 'requested' | 'processed'
   refundDetails?: string
   refundRequestedAt?: Date
+  amount?: number
 }
 
 function DashboardContent() {
@@ -50,7 +51,7 @@ function DashboardContent() {
 
   useEffect(() => {
     if (searchParams?.get('success') === 'true') {
-      toast.success('Payment successful! Your pixels are now yours.')
+      toast.success('Acquisition request submitted successfully.')
     }
     checkAuth()
     loadUserPixels()
@@ -83,7 +84,6 @@ function DashboardContent() {
 
   const loadUserPixels = async () => {
     try {
-      const startTime = Date.now()
       const token = localStorage.getItem('token')
       const res = await fetch('/api/pixels/user', {
         headers: { Authorization: `Bearer ${token}` },
@@ -92,11 +92,11 @@ function DashboardContent() {
         const data = await res.json()
         setPixels(data.pixels || [])
       } else {
-        toast.error('Failed to load your pixels')
+        toast.error('Failed to load your estate')
       }
     } catch (error) {
       console.error('Dashboard load error:', error)
-      toast.error('Failed to load your pixels')
+      toast.error('Failed to load estate')
     } finally {
       setLoading(false)
     }
@@ -113,7 +113,7 @@ function DashboardContent() {
         setPurchases(data.purchases || [])
       }
     } catch (error) {
-      console.error('Failed to load purchases:', error)
+      console.error('Error loading purchases:', error)
     }
   }
 
@@ -167,299 +167,306 @@ function DashboardContent() {
     router.push('/')
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary-500 mr-3"></div>
-        Loading...
-      </div>
-    )
+  const handleRemovePixel = async (pixel: Pixel) => {
+    if (!confirm('Are you sure you want to release this estate? It will become available for others.')) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/pixels/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ x: pixel.x, y: pixel.y })
+      })
+
+      if (res.ok) {
+        toast.success('Estate released successfully')
+        loadUserPixels()
+      } else {
+        toast.error('Failed to release estate')
+      }
+    } catch (error) {
+      toast.error('Error releasing estate')
+    }
   }
 
   const totalSpent = pixels.reduce((sum, pixel) => sum + (pixel.price || 0), 0)
 
-  return (
-    <div className="min-h-screen pb-20">
-      {/* Navbar */}
-      <nav className="glass-panel sticky top-4 mx-4 mt-4 z-50 mb-8 border-white/5">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <PixelLogo size="sm" />
-          <div className="flex items-center gap-6">
-            <Link href="/canvas" className="text-secondary-200 hover:text-white transition font-medium">
-              Canvas
-            </Link>
-            <div className="flex items-center gap-4 pl-6 border-l border-white/10">
-              <span className="text-slate-400 text-sm hidden sm:inline">Welcome, {user?.name}</span>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 text-primary-300 hover:text-white transition text-sm font-medium p-2 hover:bg-white/5 rounded-lg"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-[#BF953F]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#BF953F] mr-3"></div>
+        Accesing Vault...
+      </div>
+    )
+  }
 
-      <main className="container mx-auto px-4">
-        {/* Header */}
-        <div className="mb-10 animate-fade-in">
-          <h1 className="text-4xl font-bold mb-3 heading-gradient inline-block">Dashboard</h1>
-          <p className="text-slate-400 text-lg">Manage your digital collection and transaction history</p>
+  return (
+    <div className="min-h-screen bg-black text-white p-6 relative overflow-x-hidden">
+      {/* Background Ambience */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-[#BF953F]/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-[#BF953F]/5 rounded-full blur-[150px]" />
+      </div>
+
+      <header className="flex justify-between items-center mb-12 container mx-auto relative z-10 glass-panel p-6 border-gold">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <PixelLogo size="sm" />
+          </Link>
+          <div className="h-8 w-px bg-[#BF953F]/30" />
+          <h1 className="text-xl font-serif font-bold text-[#FCF6BA]">Investor Dashboard</h1>
         </div>
+
+        <div className="flex items-center gap-6">
+          <div className="text-right hidden sm:block">
+            <div className="text-xs text-[#BF953F] uppercase tracking-wider font-bold">Welcome Back</div>
+            <div className="font-bold text-white">{user?.name}</div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 border border-red-500/20 transition-all text-sm font-medium"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="container mx-auto relative z-10 space-y-12">
 
         {/* Stats Grid */}
         <div className="grid md:grid-cols-3 gap-6 mb-12 animate-slide-up">
-          <div className="glass-card p-6">
+          <div className="bg-gold-glass p-6 rounded-xl">
             <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-primary-500/10 rounded-lg text-primary-400">
+              <div className="p-3 bg-[#BF953F]/20 rounded-lg text-[#FCF6BA]">
                 <Box className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-sm text-slate-400">Total Pixels</div>
-                <div className="text-2xl font-bold text-white">{pixels.length}</div>
+                <div className="text-xs text-[#BF953F] uppercase font-bold">Total Assets</div>
+                <div className="text-2xl font-bold text-white font-serif">{pixels.length}</div>
               </div>
-            </div>
-            <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-primary-500 w-1/2"></div>
             </div>
           </div>
 
-          <div className="glass-card p-6">
+          <div className="bg-gold-glass p-6 rounded-xl">
             <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-secondary-500/10 rounded-lg text-secondary-400">
+              <div className="p-3 bg-[#BF953F]/20 rounded-lg text-[#FCF6BA]">
                 <CreditCard className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-sm text-slate-400">Total Invested</div>
-                <div className="text-2xl font-bold text-white">₹{totalSpent.toFixed(2)}</div>
+                <div className="text-xs text-[#BF953F] uppercase font-bold">Portfolio Value</div>
+                <div className="text-2xl font-bold text-white font-serif">₹{totalSpent.toFixed(2)}</div>
               </div>
-            </div>
-            <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-secondary-500 w-3/4"></div>
             </div>
           </div>
 
-          <div className="glass-card p-6">
+          <div className="bg-gold-glass p-6 rounded-xl">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-emerald-500/10 rounded-lg text-emerald-400">
                 <Layers className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-sm text-slate-400">Transactions</div>
-                <div className="text-2xl font-bold text-white">{purchases.length}</div>
+                <div className="text-xs text-emerald-500 uppercase font-bold">Transactions</div>
+                <div className="text-2xl font-bold text-white font-serif">{purchases.length}</div>
               </div>
-            </div>
-            <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-500 w-2/3"></div>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Active Estate Section */}
+        <section>
+          <div className="flex justify-between items-end mb-6">
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-[#FCF6BA] flex items-center gap-3">
+                <Box className="w-6 h-6 text-[#BF953F]" />
+                Active Estate Portfolio
+              </h2>
+              <p className="text-slate-400 text-sm mt-1">Manage your owned digital assets</p>
+            </div>
 
+            <Link href="/canvas" className="btn-luxury text-sm py-2 px-6 flex items-center gap-2">
+              <Layers className="w-4 h-4" /> Acquire New
+            </Link>
+          </div>
 
-        {/* Content Area */}
-        <div className="animate-fade-in">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-cyan-400" />
-            Transaction History
-          </h2>
-          {purchases.length === 0 ? (
-            <div className="glass-panel p-16 text-center">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-secondary-500/20 to-primary-500/20 flex items-center justify-center border border-white/10">
-                <CreditCard className="w-10 h-10 text-secondary-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">No History</h2>
-              <p className="text-slate-400 mb-8 max-w-md mx-auto">You haven't made any transactions yet.</p>
-              <Link
-                href="/canvas"
-                className="btn-primary"
-              >
-                Buy Pixels
+          {pixels.length === 0 ? (
+            <div className="glass-panel p-12 text-center border-dashed border-[#BF953F]/30 bg-[#BF953F]/5">
+              <Box className="w-16 h-16 text-[#BF953F]/40 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">No Active Assets</h3>
+              <p className="text-slate-400 max-w-md mx-auto mb-8">
+                You currently do not own any digital estate on PixelPlace. Begin your legacy today.
+              </p>
+              <Link href="/canvas" className="btn-luxury inline-flex items-center gap-2">
+                View Availability
               </Link>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {purchases.map((purchase) => {
-                const imageSrc = getImageSrc(purchase)
-                const totalPrice = purchase.pixelCount * PIXEL_PRICE_PER_MONTH
-                return (
-                  <div key={purchase._id} className="glass-card group flex flex-col h-full">
-                    {/* Image Preview */}
-                    <div className="relative w-full aspect-video bg-black/40 border-b border-white/5 p-4 flex items-center justify-center overflow-hidden">
-                      {imageSrc ? (
-                        <div className="relative w-full h-full">
-                          <Image
-                            src={imageSrc}
-                            alt="Transaction Item"
-                            fill
-                            className="object-contain transition-transform duration-500 group-hover:scale-110"
-                            unoptimized
-                          />
-                        </div>
-                      ) : (
-                        <ImageIcon className="w-12 h-12 text-slate-700" />
-                      )}
-                      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs text-white font-mono border border-white/10">
-                        {purchase.pixelCount} px
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pixels.map((pixel, i) => (
+                <div key={i} className="bg-gold-glass p-6 rounded-xl group hover:border-[#BF953F]/50 transition-all duration-500">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#BF953F]/20 flex items-center justify-center border border-[#BF953F]/30 text-[#FCF6BA] font-mono font-bold">
+                        #{i + 1}
+                      </div>
+                      <div>
+                        <div className="text-xs text-[#BF953F] uppercase font-bold">Coordinates</div>
+                        <div className="text-white font-mono">({pixel.x}, {pixel.y})</div>
                       </div>
                     </div>
-
-                    {/* Content */}
-                    <div className="p-5 flex-1 flex flex-col">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <div className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Total</div>
-                          <div className="text-xl font-bold text-white">₹{totalPrice.toFixed(2)}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">Date</div>
-                          <div className="text-sm text-slate-300 flex items-center gap-1 justify-end">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(purchase.purchasedAt).toLocaleDateString()}
-                          </div>
-
-                          {purchase.status === 'rejected' && purchase.rejectionReason && (
-                            <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded p-3 text-xs text-red-300">
-                              <strong>Rejected:</strong> {purchase.rejectionReason}
-                            </div>
-                          )}
-                          <div className="mt-1">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase
-                                ${purchase.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
-                                purchase.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
-                                  'bg-yellow-500/20 text-yellow-400'}`}>
-                              {purchase.status || 'manual'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {purchase.status === 'rejected' && (
-                        <div className="mt-3 pt-3 border-t border-white/5">
-                          {purchase.refundStatus === 'processed' ? (
-                            <div className="text-emerald-400 text-xs font-bold flex items-center gap-2 bg-emerald-500/10 p-2 rounded border border-emerald-500/20">
-                              <CheckCircle className="w-4 h-4" />
-                              <div>
-                                <div>Refund Processed</div>
-                                <div className="font-normal opacity-80 text-[10px]">Credited in 1-2 business days</div>
-                              </div>
-                            </div>
-                          ) : purchase.refundStatus === 'requested' ? (
-                            <div className="text-yellow-400 text-xs font-bold flex items-center gap-2 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">
-                              <div className="animate-pulse w-2 h-2 rounded-full bg-yellow-400" />
-                              Refund Requested
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setRefundOrderId(purchase.orderId)}
-                              className="w-full text-xs bg-red-500/10 text-red-400 border border-red-500/30 py-2 rounded hover:bg-red-500/20 transition font-bold"
-                            >
-                              Request Refund
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {purchase.status === 'rejected' && purchase.rejectionReason && (
-                        <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded p-3 text-xs text-red-300 mt-2">
-                          <strong>Rejected:</strong> {purchase.rejectionReason}
-                        </div>
-                      )}
-
-                      <div className="space-y-3 mb-4 flex-1">
-                        <div className="text-xs font-mono text-slate-500 bg-slate-950/50 p-2 rounded border border-white/5 truncate">
-                          ID: {purchase.orderId}
-                        </div>
-
-                        {/* Coordinates Preview */}
-                        <div className="flex flex-wrap gap-1">
-                          {purchase.coordinates.slice(0, 3).map((coord, i) => (
-                            <span key={i} className="text-[10px] font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-white/5">
-                              {coord.x},{coord.y}
-                            </span>
-                          ))}
-                          {purchase.coordinates.length > 3 && (
-                            <span className="text-[10px] font-mono text-slate-500 px-1 py-0.5">
-                              +{purchase.coordinates.length - 3} more
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {purchase.linkUrl && (
-                        <a
-                          href={purchase.linkUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-primary w-full text-center text-sm py-2 mt-auto"
-                        >
-                          Visit Link
-                        </a>
-                      )}
+                    <div className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-xs border border-emerald-500/20 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> Active
                     </div>
                   </div>
-                )
-              })}
+
+                  <div className="space-y-3 mb-6">
+                    <div className="flex justify-between text-sm py-2 border-b border-[#BF953F]/10">
+                      <span className="text-slate-400">Acquired</span>
+                      <span className="text-white">
+                        {pixel.purchasedAt ? new Date(pixel.purchasedAt).toLocaleDateString() : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm py-2 border-b border-[#BF953F]/10">
+                      <span className="text-slate-400">Expires</span>
+                      <span className="text-[#FCF6BA]">
+                        {pixel.expiresAt ? new Date(pixel.expiresAt).toLocaleDateString() : 'Lifetime'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleRemovePixel(pixel)}
+                    className="w-full py-2 border border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-lg text-xs font-medium transition-colors uppercase tracking-widest opacity-60 hover:opacity-100"
+                  >
+                    Release Asset
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-        </div>
+        </section>
+
+        {/* Transaction History */}
+        <section className="pb-20">
+          <h2 className="text-2xl font-serif font-bold text-[#FCF6BA] mb-6 flex items-center gap-3">
+            <CreditCard className="w-6 h-6 text-[#BF953F]" />
+            Transaction Ledger
+          </h2>
+
+          <div className="glass-panel overflow-hidden border-gold">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-[#BF953F]/10 text-[#BF953F] uppercase text-xs font-bold tracking-wider">
+                  <tr>
+                    <th className="p-4">Date</th>
+                    <th className="p-4">Order ID</th>
+                    <th className="p-4">Assets</th>
+                    <th className="p-4">Amount</th>
+                    <th className="p-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#BF953F]/10">
+                  {purchases.length === 0 ? (
+                    <tr><td colSpan={5} className="p-8 text-center text-slate-500">No transaction records found.</td></tr>
+                  ) : (
+                    purchases.map((p) => (
+                      <tr key={p._id} className="hover:bg-[#BF953F]/5 transition-colors">
+                        <td className="p-4 text-sm text-slate-300">
+                          {new Date(p.purchasedAt).toLocaleDateString()}
+                        </td>
+                        <td className="p-4 text-xs font-mono text-[#FCF6BA]">
+                          {p.orderId}
+                        </td>
+                        <td className="p-4 text-sm text-white">
+                          {p.pixelCount} Block{p.pixelCount > 1 ? 's' : ''}
+                        </td>
+                        <td className="p-4 text-sm font-bold text-[#FCF6BA]">
+                          ₹{p.amount ?? '-'}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-col gap-1">
+                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border w-fit
+                                                  ${p.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                p.status === 'rejected' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                  'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
+                              {p.status || 'Pending'}
+                            </span>
+                            {p.status === 'rejected' && (
+                              <div className="text-[10px] text-red-500 max-w-[150px]">{p.rejectionReason}</div>
+                            )}
+                            {p.status === 'rejected' && !p.refundStatus && (
+                              <button onClick={() => setRefundOrderId(p.orderId)} className="text-[10px] text-[#BF953F] underline hover:text-[#FCF6BA] text-left">
+                                Request Refund
+                              </button>
+                            )}
+                            {p.refundStatus === 'requested' && (
+                              <div className="text-[10px] text-yellow-500">Refund Requested</div>
+                            )}
+                            {p.refundStatus === 'processed' && (
+                              <div className="text-[10px] text-emerald-500">Refund Processed</div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       {/* Refund Modal */}
-      {
-        refundOrderId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl animate-fade-in relative">
-              <h3 className="text-xl font-bold text-white mb-2">Request Refund</h3>
-              <p className="text-sm text-slate-400 mb-4">
-                Please provide your UPI ID or Binance Pay ID where you would like to receive the refund.
-              </p>
+      {refundOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-[#BF953F]/30 rounded-xl p-6 w-full max-w-sm shadow-2xl animate-fade-in relative">
+            <h3 className="text-xl font-bold text-[#FCF6BA] mb-2 font-serif">Request Refund</h3>
+            <p className="text-sm text-slate-400 mb-4">
+              Please provide your UPI ID or Binance Pay ID.
+            </p>
 
-              <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white text-sm mb-4 focus:ring-2 focus:ring-cyan-500 outline-none"
-                placeholder="e.g. user@upl or Binance ID 123456"
-                value={refundDetails}
-                onChange={(e) => setRefundDetails(e.target.value)}
-                autoFocus
-              />
+            <input
+              className="w-full bg-black/40 border border-[#BF953F]/30 rounded-lg p-3 text-white text-sm mb-4 focus:ring-1 focus:ring-[#BF953F] outline-none"
+              placeholder="e.g. user@upl or Binance ID"
+              value={refundDetails}
+              onChange={(e) => setRefundDetails(e.target.value)}
+              autoFocus
+            />
 
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => {
-                    setRefundOrderId(null)
-                    setRefundDetails('')
-                  }}
-                  className="px-4 py-2 text-slate-400 hover:text-white font-medium"
-                  disabled={submittingRefund}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={submitRefundRequest}
-                  disabled={submittingRefund || !refundDetails.trim()}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg font-bold transition hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {submittingRefund ? 'Submitting...' : 'Submit Request'}
-                </button>
-              </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setRefundOrderId(null)
+                  setRefundDetails('')
+                }}
+                className="px-4 py-2 text-slate-400 hover:text-white font-medium text-sm"
+                disabled={submittingRefund}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRefundRequest}
+                disabled={submittingRefund || !refundDetails.trim()}
+                className="btn-luxury py-2 px-4 text-sm"
+              >
+                {submittingRefund ? 'Submitting...' : 'Submit Request'}
+              </button>
             </div>
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+    </div>
   )
 }
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        Loading...
-      </div>
-    }>
+    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-[#BF953F]">Loading Details...</div>}>
       <DashboardContent />
     </Suspense>
   )
