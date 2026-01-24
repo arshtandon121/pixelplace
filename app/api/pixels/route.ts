@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAllPixels } from '@/lib/pixels'
 
+import { getAllPixels } from '@/lib/pixels'
+
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const startTime = Date.now()
