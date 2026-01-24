@@ -383,7 +383,7 @@ export default function PixelGrid({
             <img
               src={overlay.imageUrl}
               alt={`Logo overlay ${index + 1}`}
-              className={`w-full h-full ${fitImages ? 'object-fill' : 'object-cover'}`}
+              className="w-full h-full object-cover"
               style={{
                 imageRendering: 'auto',
                 display: 'block',
