@@ -85,6 +85,19 @@ export async function PATCH(request: NextRequest) {
         if (status === 'rejected' && rejectionReason) updateDoc.rejectionReason = rejectionReason
         if (refundStatus) updateDoc.refundStatus = refundStatus
 
+        if (status === 'rejected') {
+            const { coordinates: pixels } = purchase
+            if (pixels && Array.isArray(pixels) && pixels.length > 0) {
+                // Delete the pending pixels to free them up
+                const bulkOps = pixels.map((p: any) => ({
+                    deleteOne: {
+                        filter: { x: p.x, y: p.y, userId: purchase.userId } // Ensure we only delete if it matches
+                    }
+                }))
+                await db.collection('pixels').bulkWrite(bulkOps)
+            }
+        }
+
         await db.collection('purchases').updateOne(
             { orderId },
             { $set: updateDoc }

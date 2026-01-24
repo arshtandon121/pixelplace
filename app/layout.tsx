@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: 'Purchase pixel space to promote your brand on PixelPlace.in',
 }
 
+import { Analytics } from "@vercel/analytics/react"
+
 export default function RootLayout({
   children,
 }: {
@@ -20,6 +22,7 @@ export default function RootLayout({
       <body className={inter.className}>
         {children}
         <Toaster position="top-right" />
+        <Analytics />
       </body>
     </html>
   )

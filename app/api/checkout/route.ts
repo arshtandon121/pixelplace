@@ -91,6 +91,33 @@ export async function POST(request: NextRequest) {
             screenshotFileId, // NEW FIELD
         })
 
+        // IMMEDIATELY BLOCK PIXELS (Pending State) to prevent double booking
+        // These will be shown as owned but maybe with a special status if we want
+        // For now, standard blocking is fine as requested.
+        const expiresAt = new Date()
+        expiresAt.setMonth(expiresAt.getMonth() + (tenure || 1))
+
+        const bulkOps = pixels.map((p: any) => ({
+            updateOne: {
+                filter: { x: p.x, y: p.y },
+                update: {
+                    $set: {
+                        userId: decoded.userId,
+                        imageUrl: finalImageUrl,
+                        imageFileId,
+                        linkUrl: linkUrl || undefined,
+                        purchasedAt: new Date(),
+                        expiresAt, // Tentative expiry, confirmed on approval
+                        price: unitPrice,
+                        status: 'pending' // Flag to identify these vs active ones
+                    }
+                },
+                upsert: true
+            }
+        }))
+
+        await db.collection('pixels').bulkWrite(bulkOps)
+
         // Do NOT assign pixels yet. Wait for Admin approval.
         // However, we might want to "reserve" them temporarily or just risk race conditions.
         // For manual flow, usually it's better to verify first. 

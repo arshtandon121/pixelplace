@@ -72,7 +72,8 @@ export default function PixelGrid({
     if (isSelected(x, y)) return 'bg-primary-500'
     if (isOwned(x, y)) {
       const pixel = ownedPixelsMap.get(`${x},${y}`)
-      return pixel?.imageUrl ? 'bg-transparent' : 'bg-gray-400'
+      // If we have an image (URL or FileId), transparent to show overlay. Otherwise gray.
+      return (pixel?.imageUrl || pixel?.imageFileId) ? 'bg-transparent' : 'bg-gray-400'
     }
     // Highlight available blocks with subtle green tint
     if (isInAvailableBlock(x, y)) {
