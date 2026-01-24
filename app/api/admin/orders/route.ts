@@ -18,8 +18,25 @@ export async function GET(request: NextRequest) {
     try {
         const db = await getDb()
         const purchases = await db.collection('purchases')
-            .find({})
-            .sort({ purchasedAt: -1 }) // Newest first
+            .aggregate([
+                {
+                    $lookup: {
+                        from: 'users',
+                        let: { userIdObj: { $toObjectId: '$userId' } }, // Convert string userId to ObjectId if stored as string, or match directly
+                        pipeline: [
+                            { $match: { $expr: { $eq: ['$_id', '$$userIdObj'] } } }
+                        ],
+                        as: 'userDetails'
+                    }
+                },
+                {
+                    $unwind: {
+                        path: '$userDetails',
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+                { $sort: { purchasedAt: -1 } }
+            ])
             .toArray()
 
         return NextResponse.json({ orders: purchases })

@@ -170,7 +170,15 @@ export default function AdminPage() {
                                                 </div>
                                             </td>
                                             <td className="p-4 text-sm">
-                                                <div className="text-cyan-400 font-mono text-xs">{order.userId.substring(0, 8)}...</div>
+                                                {order.userDetails ? (
+                                                    <div>
+                                                        <div className="font-bold text-white">{order.userDetails.name}</div>
+                                                        <div className="text-slate-400 text-xs">{order.userDetails.email}</div>
+                                                        <div className="text-cyan-500/50 text-[10px] mt-1 font-mono">{order.userId.substring(0, 8)}...</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-cyan-400 font-mono text-xs">{order.userId.substring(0, 8)}...</div>
+                                                )}
                                             </td>
                                             <td className="p-4">
                                                 <div className="text-sm">{order.pixelCount} Pixels</div>
