@@ -85,8 +85,35 @@ body::before {
     @apply glass-button bg-primary-600/20 text-primary-200 border-primary-500/30 hover:bg-primary-600/30 hover:border-primary-400/50 hover:text-white;
   }
 
+  /* Luxury/Gold Utilities */
+  .text-gold-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#BF953F] via-[#FCF6BA] to-[#B38728];
+  }
+
+  .border-gold {
+    @apply border-[#BF953F]/40;
+  }
+
+  .bg-gold-glass {
+    @apply bg-[#BF953F]/10 backdrop-blur-md border border-[#BF953F]/20;
+  }
+
   .heading-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-primary-300 to-secondary-300;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-[#FCF6BA] to-[#BF953F];
+  }
+
+  .btn-luxury {
+    @apply px-8 py-4 rounded-lg font-bold transition-all duration-300 active:scale-95 text-[#FCF6BA];
+    background: linear-gradient(135deg, rgba(191, 149, 63, 0.2) 0%, rgba(179, 135, 40, 0.1) 100%);
+    border: 1px solid rgba(191, 149, 63, 0.4);
+    box-shadow: 0 4px 15px -1px rgba(191, 149, 63, 0.2);
+  }
+
+  .btn-luxury:hover {
+    background: linear-gradient(135deg, rgba(191, 149, 63, 0.3) 0%, rgba(179, 135, 40, 0.2) 100%);
+    border-color: rgba(252, 246, 186, 0.6);
+    box-shadow: 0 0 20px rgba(191, 149, 63, 0.4);
+    text-shadow: 0 0 10px rgba(252, 246, 186, 0.5);
   }
 
   .animate-fade-in {
