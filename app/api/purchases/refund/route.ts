@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mongodb'
+import { getDb } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
