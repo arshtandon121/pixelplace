@@ -446,9 +446,9 @@ function DashboardContent() {
 
                     if (!groupMap.has(key)) {
                       groupMap.set(key, {
-                        imageUrl: purchase.imageUrl,
-                        imageFileId: purchase.imageFileId,
-                        linkUrl: purchase.linkUrl,
+                        imageUrl: purchase.imageUrl ?? undefined,
+                        imageFileId: purchase.imageFileId ?? undefined,
+                        linkUrl: purchase.linkUrl ?? undefined,
                         pixels: [],
                         count: purchase.pixelCount || 0,
                         expiresAt: purchase.purchasedAt, // Use purchase date
