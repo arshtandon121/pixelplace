@@ -74,6 +74,18 @@ export default function Home() {
             {/* Darker overlay for better content visibility */}
             <div className="absolute inset-0 bg-black/60 -z-10" />
 
+            {/* Vintage Vignette Effect - All Sides */}
+            <div
+              className="absolute inset-0 -z-10"
+              style={{
+                background: `
+                  radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.8) 100%),
+                  linear-gradient(to right, rgba(0,0,0,0.6) 0%, transparent 15%, transparent 85%, rgba(0,0,0,0.6) 100%),
+                  linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 15%, transparent 85%, rgba(0,0,0,0.6) 100%)
+                `
+              }}
+            />
+
             {/* Canvas Preview */}
             <div className="relative z-10">
               <CanvasPreview ownedPixels={ownedPixels} />

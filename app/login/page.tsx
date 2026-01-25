@@ -56,6 +56,29 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Video Background */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover opacity-30"
+      >
+        <source src="/login_video.mp4" type="video/mp4" />
+      </video>
+
+      {/* Vintage Vignette Effect */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `
+            radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.8) 100%),
+            linear-gradient(to right, rgba(0,0,0,0.6) 0%, transparent 15%, transparent 85%, rgba(0,0,0,0.6) 100%),
+            linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 15%, transparent 85%, rgba(0,0,0,0.6) 100%)
+          `
+        }}
+      />
+
       {/* Ambient Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#BF953F]/10 rounded-full blur-[120px]" />
@@ -109,7 +132,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="bg-slate-900/50 backdrop-blur-xl border border-[#BF953F]/30 rounded-2xl shadow-[0_0_50px_-10px_rgba(191,149,63,0.15)] p-8 w-full max-w-md relative z-10"
+        className="bg-slate-900/30 backdrop-blur-2xl border border-[#BF953F]/30 rounded-2xl shadow-[0_0_50px_-10px_rgba(191,149,63,0.15)] p-8 w-full max-w-md relative z-10"
       >
         <div className="flex justify-center mb-8">
           <PixelLogo size="lg" />
