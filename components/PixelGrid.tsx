@@ -1,15 +1,20 @@
 'use client'
 
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, Minus, Move, ExternalLink, TrendingUp, ShieldCheck, User } from 'lucide-react'
+import { useAudio } from '@/hooks/useAudio'
 import { useState, useMemo, memo, useCallback } from 'react'
-import { GRID_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT, BLOCKS_PER_ROW, BLOCKS_PER_COL } from '@/lib/constants'
+import { GRID_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT, BLOCKS_PER_ROW, BLOCKS_PER_COL, PIXEL_PRICE_PER_MONTH } from '@/lib/constants'
 
 interface Pixel {
   x: number
   y: number
   userId?: string
+  username?: string
   imageUrl?: string
   imageFileId?: string // GridFS file ID
   linkUrl?: string
+  price?: number
 }
 
 interface AvailableBlock {
@@ -26,6 +31,8 @@ interface PixelGridProps {
   previewImage?: string | null
   availableBlocks?: AvailableBlock[]
   fitImages?: boolean
+  showTooltip?: boolean
+  disableLinks?: boolean
 }
 
 export default function PixelGrid({
@@ -36,8 +43,16 @@ export default function PixelGrid({
   previewImage,
   availableBlocks = [],
   fitImages = false,
+  showTooltip = true,
+  disableLinks = false,
 }: PixelGridProps) {
   const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null)
+  const [tooltipData, setTooltipData] = useState<{
+    x: number;
+    y: number;
+    pixel: Pixel | null;
+    visible: boolean;
+  }>({ x: 0, y: 0, pixel: null, visible: false })
 
   // Optimize: Create lookup maps for faster access
   const ownedPixelsMap = useMemo(() => {
@@ -99,10 +114,13 @@ export default function PixelGrid({
     for (let i = 0; i < ownedPixels.length; i++) {
       const p = ownedPixels[i]
       // Include pixels with imageUrl (small base64) or imageFileId (GridFS)
-      if (p.imageUrl || p.imageFileId) {
+      if ((p.imageUrl && p.imageUrl.length > 0) || (p.imageFileId && p.imageFileId.length > 0)) {
         pixelsWithImages.push(p)
       }
     }
+
+    console.log('🎨 PixelGrid: Processing', ownedPixels.length, 'owned pixels')
+    console.log('🎨 PixelGrid: Found', pixelsWithImages.length, 'pixels with images')
 
     if (pixelsWithImages.length === 0) {
       return []
@@ -138,7 +156,8 @@ export default function PixelGrid({
       top: number
       width: number
       height: number
-      imageUrl: string
+      imageUrl?: string
+      imageFileId?: string
       linkUrl?: string
     }> = []
 
@@ -189,25 +208,24 @@ export default function PixelGrid({
             const minY = Math.min(...ys)
             const maxY = Math.max(...ys)
 
-            // Use imageFileId if available (GridFS), otherwise imageUrl (base64)
-            const imageSource = group.imageFileId
-              ? `/api/images/${group.imageFileId}`
-              : (group.imageUrl || '')
-
-            if (imageSource) {
-              overlays.push({
-                left: minX * 12 + 8,
-                top: minY * 12 + 8,
-                width: (maxX - minX + 1) * 12,
-                height: (maxY - minY + 1) * 12,
-                imageUrl: imageSource,
-                linkUrl: group.linkUrl,
-              })
-            }
+            overlays.push({
+              left: minX * 12 + 8,
+              top: minY * 12 + 8,
+              width: (maxX - minX + 1) * 12,
+              height: (maxY - minY + 1) * 12,
+              imageUrl: group.imageUrl,
+              imageFileId: group.imageFileId,
+              linkUrl: group.linkUrl,
+            })
           }
         }
       })
     })
+
+    console.log('🎨 PixelGrid: Created', overlays.length, 'image overlays')
+    if (overlays.length > 0) {
+      console.log('🎨 First overlay (full):', JSON.stringify(overlays[0], null, 2))
+    }
 
     return overlays
   }, [ownedPixels])
@@ -295,6 +313,8 @@ export default function PixelGrid({
     })
   }, [previewImage, getContiguousBlocks])
 
+  const { playSound } = useAudio()
+
   return (
     <div className="inline-block border border-white/10 rounded-lg p-2 bg-slate-900/50 backdrop-blur-sm relative" style={{ position: 'relative' }}>
       <div
@@ -311,7 +331,7 @@ export default function PixelGrid({
           const owned = isOwned(x, y)
           const selected = isSelected(x, y)
           const pixel = owned ? ownedPixelsMap.get(`${x},${y}`) : null
-          const pixelColor = selected ? 'bg-primary-500' : (owned ? (pixel?.imageUrl ? 'bg-transparent' : 'bg-gray-400') : 'bg-white border border-gray-200')
+          const pixelColor = selected ? 'bg-primary-500' : (owned ? ((pixel?.imageUrl || pixel?.imageFileId) ? 'bg-transparent' : 'bg-gray-400') : 'bg-white border border-gray-200')
 
           return (
             <div
@@ -324,18 +344,124 @@ export default function PixelGrid({
               onClick={(e) => {
                 if (!owned) {
                   onPixelClick(x, y)
+                  playSound('click')
                 }
               }}
-              onMouseEnter={() => {
+              onMouseEnter={(e) => {
                 setHoveredPixel({ x, y })
                 onPixelHover(x, y)
+                playSound('hover')
+
+                // Premium Tooltip Logic
+                if (showTooltip) {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const containerRect = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect()
+
+                  setTooltipData({
+                    x: rect.left - (containerRect?.left || 0) + 6,
+                    y: rect.top - (containerRect?.top || 0) - 10,
+                    pixel: pixel || ({ x, y } as Pixel),
+                    visible: true
+                  })
+                }
               }}
-              onMouseLeave={() => setHoveredPixel(null)}
-              title={owned ? 'Owned' : `(${x}, ${y}) - Click to select ${BLOCK_WIDTH}x${BLOCK_HEIGHT} block`}
+              onMouseLeave={() => {
+                setHoveredPixel(null)
+                setTooltipData(prev => ({ ...prev, visible: false }))
+              }}
             />
           )
         })}
       </div>
+
+      {/* Premium Tooltip */}
+      <AnimatePresence>
+        {tooltipData.visible && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            className="absolute z-[100] w-64 bg-slate-900/90 backdrop-blur-2xl border border-[#BF953F]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden pointer-events-auto"
+            style={{
+              left: tooltipData.x,
+              bottom: `calc(100% - ${tooltipData.y}px + 20px)`,
+              transform: 'translateX(-50%)'
+            }}
+          >
+            {/* Estate Image Header */}
+            <div className="h-32 w-full bg-black/40 relative overflow-hidden group/img">
+              {tooltipData.pixel?.imageUrl || tooltipData.pixel?.imageFileId ? (
+                <img
+                  src={tooltipData.pixel?.imageFileId ? `/api/images/${tooltipData.pixel.imageFileId}` : tooltipData.pixel?.imageUrl}
+                  className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700"
+                  alt="Estate Preview"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 to-black">
+                  <ShieldCheck className="w-12 h-12 text-[#BF953F]/20" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-4 flex items-center gap-2">
+                <div className="px-2 py-0.5 rounded-full bg-[#BF953F] text-[10px] font-bold text-black uppercase tracking-wider">
+                  {isOwned(tooltipData.pixel?.x || 0, tooltipData.pixel?.y || 0) ? 'Established' : 'Prime Sector'}
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-5">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h4 className="text-[#FCF6BA] font-serif font-bold text-lg mb-0.5">
+                    {tooltipData.pixel?.username || 'Digital Estate'}
+                  </h4>
+                  <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold">
+                    Section {tooltipData.pixel?.x}, {tooltipData.pixel?.y}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-[#BF953F] font-bold text-sm">₹{(tooltipData.pixel?.price || PIXEL_PRICE_PER_MONTH).toLocaleString()}</span>
+                  <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-bold">
+                    <TrendingUp className="w-2.5 h-2.5" />
+                    +12%
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className="bg-black/40 p-2 rounded-xl border border-white/5">
+                  <span className="block text-[8px] text-slate-500 uppercase tracking-wider mb-1">Rarity</span>
+                  <span className="text-[10px] text-slate-200 font-bold">Exalted</span>
+                </div>
+                <div className="bg-black/40 p-2 rounded-xl border border-white/5 text-right">
+                  <span className="block text-[8px] text-slate-500 uppercase tracking-wider mb-1">Status</span>
+                  <span className="text-[10px] text-slate-200 font-bold">Verified</span>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              {tooltipData.pixel?.linkUrl ? (
+                <button
+                  onClick={() => window.open(tooltipData.pixel?.linkUrl, '_blank')}
+                  className="w-full py-2.5 bg-[#BF953F] hover:bg-[#FCF6BA] text-black text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 group"
+                >
+                  Discover Portfolio
+                  <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => onPixelClick(tooltipData.pixel?.x || 0, tooltipData.pixel?.y || 0)}
+                  className="w-full py-2.5 bg-white/5 hover:bg-[#BF953F]/20 text-[#FCF6BA] border border-[#BF953F]/30 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  Acquire Estate
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Preview Image Overlays - One for each contiguous block */}
       {previewImage && previewOverlays.map((overlay, index) => (
@@ -360,11 +486,12 @@ export default function PixelGrid({
 
       {/* Owned Image Overlays - Combined images for owned pixel blocks */}
       {getOwnedImageOverlays.map((overlay, index) => {
-        if (!overlay.imageUrl || overlay.imageUrl.trim() === '') return null
+        // Skip if no image source at all
+        if (!overlay.imageUrl && !overlay.imageFileId) return null
 
         return (
           <div
-            key={`owned-${overlay.imageUrl}-${index}`}
+            key={`owned-${overlay.imageFileId || overlay.imageUrl || index}-${index}`}
             className="absolute z-10 pointer-events-auto cursor-pointer hover:opacity-90 transition-opacity"
             style={{
               left: `${overlay.left}px`,
@@ -374,14 +501,14 @@ export default function PixelGrid({
               backgroundColor: 'transparent',
             }}
             onClick={() => {
-              if (overlay.linkUrl) {
+              if (!disableLinks && overlay.linkUrl) {
                 window.open(overlay.linkUrl, '_blank')
               }
             }}
-            title={overlay.linkUrl ? 'Click to visit link' : 'Owned pixel'}
+            title={!disableLinks && overlay.linkUrl ? 'Click to visit link' : 'Owned pixel'}
           >
             <img
-              src={overlay.imageUrl}
+              src={overlay.imageFileId ? `/api/images/${overlay.imageFileId}` : (overlay.imageUrl || '')}
               alt={`Logo overlay ${index + 1}`}
               className="w-full h-full object-cover"
               style={{
@@ -390,7 +517,7 @@ export default function PixelGrid({
               }}
               loading="lazy"
               onError={(e) => {
-                console.error('Failed to load image:', overlay.imageUrl)
+                console.error('Failed to load image:', overlay.imageFileId || overlay.imageUrl)
                 e.currentTarget.style.display = 'none'
               }}
             />

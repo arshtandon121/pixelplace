@@ -85,7 +85,8 @@ export async function PATCH(request: NextRequest) {
                                 linkUrl,
                                 purchasedAt: new Date(),
                                 expiresAt,
-                                price: PIXEL_PRICE_PER_MONTH * (tenure || 1)
+                                price: PIXEL_PRICE_PER_MONTH * (tenure || 1),
+                                status: 'active'
                             }
                         },
                         upsert: true

@@ -579,6 +579,7 @@ export default function CanvasPage() {
                 previewImage={uploadedImage || tempImage}
                 availableBlocks={availableBlocks}
                 fitImages={fitImage}
+                disableLinks={true}
               />
             </div>
 

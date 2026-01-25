@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 }
 
 import { Analytics } from "@vercel/analytics/react"
+import CustomCursor from '@/components/ui/CustomCursor'
 
 export default function RootLayout({
   children,
@@ -23,7 +24,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${playfair.variable} font-sans`}>
+      <body className={`${inter.variable} ${playfair.variable} font-sans cursor-none`}>
+        <CustomCursor />
         {children}
         <Toaster position="top-right" />
         <Analytics />

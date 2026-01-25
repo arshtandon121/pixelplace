@@ -35,6 +35,7 @@ export default function CanvasPreview({ ownedPixels }: CanvasPreviewProps) {
                             onPixelClick={() => { }}
                             onPixelHover={() => { }}
                             previewImage={null}
+                            showTooltip={false}
                         />
                     </div>
                 </div>

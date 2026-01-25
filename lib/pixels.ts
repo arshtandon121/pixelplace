@@ -60,6 +60,26 @@ export async function getPixelsByUser(userId: string): Promise<Pixel[]> {
 export async function getAllPixels(): Promise<Pixel[]> {
   const db = await getDb()
   const now = new Date()
+
+  // Debug: Check total pixels in database
+  const totalCount = await db.collection<Pixel>('pixels').countDocuments({})
+  console.log('🔍 Total pixels in database:', totalCount)
+
+  // Debug: Check pixels with images
+  const withImagesCount = await db.collection<Pixel>('pixels').countDocuments({
+    $or: [
+      { imageUrl: { $exists: true, $ne: null, $nin: [''] } },
+      { imageFileId: { $exists: true, $ne: null, $nin: [''] } }
+    ]
+  })
+  console.log('🔍 Pixels with images:', withImagesCount)
+
+  // Debug: Check non-pending pixels
+  const notPendingCount = await db.collection<Pixel>('pixels').countDocuments({
+    status: { $ne: 'pending' }
+  })
+  console.log('🔍 Non-pending pixels:', notPendingCount)
+
   // Fetch pixels with images - but use aggregation to limit imageUrl size
   // This prevents huge base64 strings from slowing down the query
   const pixels = await db.collection<Pixel>('pixels')
@@ -72,6 +92,10 @@ export async function getAllPixels(): Promise<Pixel[]> {
                 { expiresAt: { $exists: false } },
                 { expiresAt: { $gt: now } }
               ]
+            },
+            {
+              // Exclude pending pixels, but allow missing status (legacy) or active
+              status: { $ne: 'pending' }
             },
             {
               $or: [
@@ -102,6 +126,11 @@ export async function getAllPixels(): Promise<Pixel[]> {
       }
     ])
     .toArray()
+
+  console.log('📊 getAllPixels: Found', pixels.length, 'pixels')
+  if (pixels.length > 0) {
+    console.log('📊 Sample pixel:', pixels[0])
+  }
 
   return pixels as Pixel[]
 }
