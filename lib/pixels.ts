@@ -68,8 +68,8 @@ export async function getAllPixels(): Promise<Pixel[]> {
   // Debug: Check pixels with images
   const withImagesCount = await db.collection<Pixel>('pixels').countDocuments({
     $or: [
-      { imageUrl: { $exists: true, $ne: null, $nin: [''] } },
-      { imageFileId: { $exists: true, $ne: null, $nin: [''] } }
+      { imageUrl: { $exists: true, $ne: null as any, $nin: [''] } },
+      { imageFileId: { $exists: true, $ne: null as any, $nin: [''] } }
     ]
   })
   console.log('🔍 Pixels with images:', withImagesCount)
