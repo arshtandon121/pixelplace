@@ -23,10 +23,25 @@ const mono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.pixelplace.in'),
   title: 'PixelPlace — Put your brand on the live pixel canvas',
   description: 'Rent space on a public 50×50 pixel canvas. Upload your logo and link. Listings go live after payment, from 1 hour to 1 year.',
   icons: {
-    icon: '/pixelplaceicon.png',
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/apple-icon' }],
+  },
+  openGraph: {
+    title: 'PixelPlace — Put your brand on the live pixel canvas',
+    description: 'Rent space on a public 50×50 pixel canvas. Upload your logo and link. Listings go live after payment, from 1 hour to 1 year.',
+    url: 'https://www.pixelplace.in',
+    siteName: 'PixelPlace',
+    locale: 'en_IN',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PixelPlace — Put your brand on the live pixel canvas',
+    description: 'Rent space on a public 50×50 pixel canvas. Upload your logo and link. Listings go live after payment, from 1 hour to 1 year.',
   },
 }
 

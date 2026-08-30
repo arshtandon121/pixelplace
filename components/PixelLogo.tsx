@@ -1,14 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-
-const MARK = [
-  [1, 1, 1, 1, 0],
-  [1, 0, 0, 1, 0],
-  [1, 1, 1, 1, 0],
-  [1, 0, 0, 0, 0],
-  [1, 0, 0, 0, 0],
-]
+import { PIXEL_P } from '@/lib/brand-mark'
 
 const SIZES = {
   sm: { mark: 40, type: '1.35rem' },
@@ -45,7 +38,7 @@ export default function PixelLogo({
       }}
     >
       <svg width={mark - 8} height={mark - 8} viewBox="0 0 22 22" aria-hidden>
-        {MARK.flatMap((row, y) =>
+        {PIXEL_P.flatMap((row, y) =>
           row.map((on, x) => (
             <rect
               key={`${x}-${y}`}
