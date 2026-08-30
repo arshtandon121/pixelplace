@@ -58,9 +58,7 @@ function DashboardContent() {
   const [isUpdating, setIsUpdating] = useState(false)
 
   useEffect(() => {
-    if (searchParams?.get('success') === 'true') {
-      toast.success('Acquisition request submitted successfully.')
-    }
+    const checkoutId = searchParams?.get('checkout_id')
 
     const fetchData = async () => {
       try {
@@ -70,7 +68,29 @@ function DashboardContent() {
           return
         }
 
-        // Fetch both pixels and purchases
+        if (checkoutId) {
+          try {
+            const confirmRes = await fetch('/api/checkout/confirm', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ checkoutId }),
+            })
+            const confirmData = await confirmRes.json()
+            if (confirmRes.ok && confirmData.status === 'completed') {
+              toast.success('Payment confirmed. Your estate is live.')
+            } else if (confirmRes.ok && confirmData.status && confirmData.status !== 'completed') {
+              toast('Payment is still processing. This page will update shortly.')
+            }
+          } catch (error) {
+            console.error('Checkout confirm error:', error)
+          }
+        } else if (searchParams?.get('success') === 'true') {
+          toast.success('Acquisition completed successfully.')
+        }
+
         const [pixelsRes, purchasesRes] = await Promise.all([
           fetch('/api/pixels/user', { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/purchases', { headers: { Authorization: `Bearer ${token}` } })
@@ -89,7 +109,7 @@ function DashboardContent() {
       }
     }
 
-    checkAuth() // Still check auth separately as it handles user state and redirect
+    checkAuth()
     fetchData()
   }, [searchParams])
 
@@ -482,7 +502,7 @@ function DashboardContent() {
 
                     {group.status === 'pending' ? (
                       <div className="absolute top-4 right-4 bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg text-[10px] font-bold border border-yellow-500/30 backdrop-blur-sm flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Pending Review
+                        <Clock className="w-3 h-3" /> Confirming payment
                       </div>
                     ) : group.status === 'rejected' ? (
                       <div className="absolute top-4 right-4 bg-red-500/20 text-red-400 px-3 py-1 rounded-lg text-[10px] font-bold border border-red-500/30 backdrop-blur-sm flex items-center gap-1">
@@ -490,7 +510,7 @@ function DashboardContent() {
                       </div>
                     ) : (
                       <div className="absolute top-4 right-4 bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-lg text-[10px] font-bold border border-emerald-500/30 backdrop-blur-sm flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3" /> Approved
+                        <ShieldCheck className="w-3 h-3" /> Live
                       </div>
                     )}
 

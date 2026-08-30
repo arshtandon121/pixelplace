@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
 
         // Get payment statistics
         const paymentStats = await db.collection('purchases').aggregate([
+            { $match: { status: 'completed' } },
             {
                 $group: {
                     _id: null,

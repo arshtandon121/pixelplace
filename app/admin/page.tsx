@@ -355,7 +355,12 @@ export default function AdminPage() {
                                                     <div className="text-xs font-bold text-emerald-400">₹{order.amount}</div>
                                                 </td>
                                                 <td className="p-4">
-                                                    {order.screenshotFileId ? (
+                                                    {order.provider === 'polar' ? (
+                                                        <div className="text-xs text-slate-300">
+                                                            <div className="font-bold text-cyan-400">Polar</div>
+                                                            <div className="text-slate-500 font-mono break-all">{order.polarOrderId || order.polarCheckoutId || order.orderId}</div>
+                                                        </div>
+                                                    ) : order.screenshotFileId ? (
                                                         <button
                                                             onClick={() => setViewImage(`/api/images/${order.screenshotFileId}`)}
                                                             className="flex items-center gap-1 text-xs text-cyan-400 border border-cyan-500/30 px-2 py-1 rounded hover:bg-cyan-900/20"
@@ -399,7 +404,9 @@ export default function AdminPage() {
                                                     )}
                                                 </td>
                                                 <td className="p-4">
-                                                    {order.status === 'pending' && (
+                                                    {order.provider === 'polar' ? (
+                                                        <span className="text-xs text-emerald-400/80">Auto on payment</span>
+                                                    ) : order.status === 'pending' ? (
                                                         <div className="flex gap-2">
                                                             <button
                                                                 onClick={() => updateStatus(order.orderId, 'completed')}
@@ -416,7 +423,7 @@ export default function AdminPage() {
                                                                 <X className="w-4 h-4" />
                                                             </button>
                                                         </div>
-                                                    )}
+                                                    ) : null}
                                                 </td>
                                             </tr>
                                         ))}

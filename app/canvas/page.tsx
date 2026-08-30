@@ -3,20 +3,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Script from 'next/script'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import PixelGrid from '@/components/PixelGrid'
 import PixelLogo from '@/components/PixelLogo'
 import { PIXEL_PRICE_PER_MONTH, TENURE_OPTIONS, GRID_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT, BLOCKS_PER_ROW, BLOCKS_PER_COL } from '@/lib/constants'
-import { ShoppingCart, LogOut, Sparkles, Zap, Upload, X, Link as LinkIcon, Crop } from 'lucide-react'
+import { ShoppingCart, Sparkles, Zap, Upload, X, Link as LinkIcon, CreditCard, ShieldCheck } from 'lucide-react'
 import ImageCropper from '@/components/ImageCropper'
-
-declare global {
-  interface Window {
-    Razorpay: any
-  }
-}
 
 interface Pixel {
   x: number
@@ -36,16 +29,12 @@ export default function CanvasPage() {
 
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [linkUrl, setLinkUrl] = useState<string>('')
   const [tenure, setTenure] = useState(1)
   const [showCropper, setShowCropper] = useState(false)
   const [tempImage, setTempImage] = useState<string | null>(null)
   const [fitImage, setFitImage] = useState(false)
-
-  // Payment Method State
-  const [paymentMethod, setPaymentMethod] = useState<'binance' | 'upi'>('binance')
 
   // Calculate available blocks
   const availableBlocks = useMemo(() => {
@@ -214,23 +203,14 @@ export default function CanvasPage() {
     e.target.value = ''
   }
 
-  const submitManualOrder = async () => {
-    if (!screenshotFile) {
-      toast.error('Please upload payment screenshot')
+  const startPolarCheckout = async () => {
+    if (!uploadedImage) {
+      toast.error('Please upload your insignia image')
       return
     }
 
     setCheckoutLoading(true)
     try {
-      let screenshotBase64 = ''
-      if (screenshotFile) {
-        screenshotBase64 = await new Promise((resolve) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(reader.result as string)
-          reader.readAsDataURL(screenshotFile)
-        })
-      }
-
       const token = localStorage.getItem('token')
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -243,42 +223,29 @@ export default function CanvasPage() {
           imageUrl: uploadedImage,
           linkUrl: linkUrl || undefined,
           tenure,
-          screenshot: screenshotBase64
         }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error || 'Failed to submit order')
+        toast.error(data.error || 'Failed to start checkout')
         setCheckoutLoading(false)
         return
       }
 
-      if (data.success) {
-        toast.success('Acquisition request submitted! Verification takes 12-24 hours.')
-        setSelectedPixels([])
-        setUploadedImage(null)
-        setLinkUrl('')
-        setTenure(1)
-        setScreenshotFile(null)
-        setShowPaymentModal(false)
-        loadPixels()
-        router.push('/dashboard')
-      } else {
-        toast.error('Unknown response from server')
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+        return
       }
+
+      toast.error('Checkout URL missing')
     } catch (error) {
       console.error('Checkout error:', error)
       toast.error('Something went wrong')
     } finally {
       setCheckoutLoading(false)
     }
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    router.push('/')
   }
 
   const totalPrice = selectedPixels.length * PIXEL_PRICE_PER_MONTH * tenure
@@ -528,7 +495,7 @@ export default function CanvasPage() {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#BF953F] font-bold">04.</span>
-                  <span>Complete secure payment verification.</span>
+                  <span>Pay securely — your estate goes live automatically.</span>
                 </li>
               </ul>
             </div>
@@ -651,100 +618,45 @@ export default function CanvasPage() {
 
               <div className="text-center mb-5 md:mb-6">
                 <h3 className="text-xl md:text-2xl font-serif font-bold text-[#FCF6BA] mb-2">Secure Acquisition</h3>
-                <p className="text-slate-400 text-xs md:text-sm">Complete your transfer to seal ownership</p>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex border-b border-white/10 mb-6">
-                <button
-                  onClick={() => setPaymentMethod('binance')}
-                  className={`flex-1 pb-3 text-sm font-bold transition relative ${paymentMethod === 'binance' ? 'text-[#FCF6BA]' : 'text-slate-400 hover:text-white'}`}
-                >
-                  Binance Pay
-                  {paymentMethod === 'binance' && (
-                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#BF953F]" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setPaymentMethod('upi')}
-                  className={`flex-1 pb-3 text-sm font-bold transition relative ${paymentMethod === 'upi' ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}
-                >
-                  UPI (India)
-                  {paymentMethod === 'upi' && (
-                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />
-                  )}
-                </button>
+                <p className="text-slate-400 text-xs md:text-sm">Pay with Polar. Ownership goes live the moment payment succeeds.</p>
               </div>
 
               <div className="space-y-6">
-
-                {paymentMethod === 'binance' ? (
-                  <>
-                    <div className="flex flex-col items-center p-4 bg-white rounded-xl">
-                      <img src="/payment-qr.png" alt="Binance QR" className="w-48 h-48 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-                    </div>
-                    <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-slate-400 text-sm">Binance Pay ID</span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText('127476736')
-                            toast.success('Copied!')
-                          }}
-                          className="text-xs text-[#BF953F] hover:text-[#FCF6BA] font-mono"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <div className="text-xl font-mono text-white tracking-widest">
-                        127476736
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex flex-col items-center p-4 bg-white rounded-xl relative">
-                      <img src="/upi.png" alt="UPI QR" className="w-48 h-48 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-                    </div>
-                    <div className="text-center text-sm text-slate-400">Scan with GPay, PhonePe, Paytm</div>
-                  </>
-                )}
+                <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5 space-y-2 text-sm">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Pixels</span>
+                    <span className="text-white font-mono">{selectedPixels.length}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Tenure</span>
+                    <span className="text-white">{tenure} month{tenure > 1 ? 's' : ''}</span>
+                  </div>
+                </div>
 
                 <div className="bg-[#BF953F]/10 p-4 rounded-xl border border-[#BF953F]/20 flex justify-between items-center text-sm">
                   <span className="text-slate-300">Total Due</span>
                   <span className="text-xl font-bold text-[#FCF6BA] font-serif">₹{totalPriceINR}</span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-[#BF953F] uppercase mb-2">Proof of Transfer</label>
-                  <div className="border border-dashed border-slate-700 rounded-lg p-4 text-center">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setScreenshotFile(e.target.files?.[0] || null)}
-                      className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#BF953F]/10 file:text-[#BF953F] hover:file:bg-[#BF953F]/20"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-blue-500/10 p-3 rounded-lg flex gap-3 items-start border border-blue-500/20">
-                  <div className="p-1 bg-blue-500/20 rounded">
-                    <Zap className="w-4 h-4 text-blue-400" />
+                <div className="bg-emerald-500/10 p-3 rounded-lg flex gap-3 items-start border border-emerald-500/20">
+                  <div className="p-1 bg-emerald-500/20 rounded">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-blue-300">Instant Reservation</h4>
-                    <p className="text-xs text-blue-400/70 mt-1">
-                      Your pixels will be <strong>immediately blocked</strong> on the canvas upon submission, pending final admin confirmation.
+                    <h4 className="text-sm font-bold text-emerald-300">Automatic approval</h4>
+                    <p className="text-xs text-emerald-400/70 mt-1">
+                      After Polar confirms payment, your pixels are approved instantly. No admin wait.
                     </p>
                   </div>
                 </div>
 
                 <button
-                  disabled={checkoutLoading || !screenshotFile}
-                  onClick={submitManualOrder}
+                  disabled={checkoutLoading}
+                  onClick={startPolarCheckout}
                   className="w-full btn-luxury flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {checkoutLoading ? 'Processing...' : 'Confirm Transfer'}
+                  <CreditCard className="w-4 h-4" />
+                  {checkoutLoading ? 'Redirecting to Polar...' : 'Pay securely'}
                 </button>
               </div>
             </div>
