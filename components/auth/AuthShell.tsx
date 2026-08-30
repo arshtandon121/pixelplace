@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
 import PixelLogo from '@/components/PixelLogo'
 import PixelGrid from '@/components/PixelGrid'
@@ -36,9 +35,9 @@ export default function AuthShell({
   return (
     <div className="min-h-[100svh] grid lg:grid-cols-2 bg-[var(--ks-lacquer)]">
       <aside className="relative hidden lg:flex flex-col justify-between p-10 xl:p-14 border-r border-[var(--ks-rule)] overflow-hidden">
-        <Link href="/" className="relative z-10 max-w-[160px]">
-          <PixelLogo size="lg" className="[&_div]:!w-[180px] [&_div]:!h-[64px]" />
-        </Link>
+        <div className="relative z-10">
+          <PixelLogo size="lg" />
+        </div>
 
         <div className="relative z-10 my-10">
           <p className="ks-mono text-[var(--ks-patina-text)] mb-4 inline-flex items-center gap-2">
@@ -112,9 +111,7 @@ export default function AuthShell({
           className="w-full max-w-[420px]"
         >
           <div className="lg:hidden mb-8">
-            <Link href="/">
-              <PixelLogo size="lg" className="[&_div]:!w-[160px] [&_div]:!h-[56px]" />
-            </Link>
+            <PixelLogo size="md" />
           </div>
           <h1 className="ks-headline mb-2">{title}</h1>
           <p className="text-[var(--ks-muted)] text-sm mb-8">{subtitle}</p>

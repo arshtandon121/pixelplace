@@ -46,7 +46,6 @@ export default function PixelGrid({
   showTooltip = true,
   disableLinks = false,
 }: PixelGridProps) {
-  const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null)
   const [tooltipData, setTooltipData] = useState<{
     x: number;
     y: number;
@@ -348,26 +347,23 @@ export default function PixelGrid({
                 }
               }}
               onMouseEnter={(e) => {
-                setHoveredPixel({ x, y })
                 onPixelHover(x, y)
-                playSound('hover')
 
-                // Premium Tooltip Logic
-                if (showTooltip) {
+                if (!showTooltip) return
+                setTooltipData((prev) => {
+                  if (prev.visible && prev.pixel?.x === x && prev.pixel?.y === y) return prev
                   const rect = e.currentTarget.getBoundingClientRect()
                   const containerRect = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect()
-
-                  setTooltipData({
+                  return {
                     x: rect.left - (containerRect?.left || 0) + 6,
                     y: rect.top - (containerRect?.top || 0) - 10,
                     pixel: pixel || ({ x, y } as Pixel),
-                    visible: true
-                  })
-                }
+                    visible: true,
+                  }
+                })
               }}
               onMouseLeave={() => {
-                setHoveredPixel(null)
-                setTooltipData(prev => ({ ...prev, visible: false }))
+                setTooltipData((prev) => (prev.visible ? { ...prev, visible: false } : prev))
               }}
             />
           )

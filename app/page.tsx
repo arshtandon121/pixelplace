@@ -8,6 +8,7 @@ import HowItWorks from '@/components/home/HowItWorks'
 import Features from '@/components/home/Features'
 import StatsMarquee from '@/components/home/StatsMarquee'
 import Newsletter from '@/components/home/Newsletter'
+import PixelLogo from '@/components/PixelLogo'
 
 export default function Home() {
   const [ownedPixels, setOwnedPixels] = useState<any[]>([])
@@ -62,7 +63,9 @@ export default function Home() {
         <div className="ks-section">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
             <div className="md:col-span-2">
-              <p className="ks-wordmark mb-4">PixelPlace</p>
+              <div className="mb-4">
+                <PixelLogo size="sm" />
+              </div>
               <p className="text-[var(--ks-muted)] text-sm leading-[1.7] max-w-md">
                 A public pixel canvas for brand display. Rent space, add your logo and link, and the listing goes live after payment — from 1 hour to 1 year.
               </p>

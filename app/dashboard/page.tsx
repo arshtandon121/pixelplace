@@ -386,7 +386,7 @@ function DashboardContent() {
             <PixelLogo size="sm" noLink />
           </Link>
           <div className="h-8 w-px bg-[#BF953F]/30" />
-          <h1 className="text-xl font-serif font-bold text-[#FCF6BA]">Investor Dashboard</h1>
+          <h1 className="text-xl font-serif font-bold text-[#FCF6BA]">Dashboard</h1>
         </div>
 
         <div className="flex items-center gap-6">

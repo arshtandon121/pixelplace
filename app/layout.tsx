@@ -37,7 +37,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${sans.variable} ${mono.variable} font-sans cursor-none`}>
+      <body className={`${display.variable} ${sans.variable} ${mono.variable} font-sans md:cursor-none`}>
         <CustomCursor />
         {children}
         <Toaster position="top-right" />

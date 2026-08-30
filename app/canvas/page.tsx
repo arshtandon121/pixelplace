@@ -313,9 +313,7 @@ export default function CanvasPage() {
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 md:mb-8 bg-gold-glass p-3 md:p-4 rounded-xl sticky top-2 md:top-4 z-40 shadow-2xl">
           <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto">
-            <Link href="/" className="hover:opacity-80 transition-opacity">
-              <PixelLogo size="sm" />
-            </Link>
+            <PixelLogo size="md" />
             <div className="hidden md:block h-8 w-px bg-[#BF953F]/30" />
             <h1 className="hidden md:block text-lg lg:text-xl font-bold font-serif text-[#FCF6BA]">
               Live pixel canvas

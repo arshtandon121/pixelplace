@@ -22,10 +22,8 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
     return (
         <nav className={`fixed top-0 left-0 right-0 z-50 transition-[background,border-color] duration-500 ${isScrolled ? 'bg-[var(--ks-lacquer)]/92 backdrop-blur-md border-b border-[var(--ks-rule)]' : 'bg-transparent'}`}>
-            <div className="ks-section py-3 flex justify-between items-center">
-                <div className="max-h-9 max-w-[148px] overflow-hidden flex items-center">
-                    <PixelLogo size="sm" className="!gap-0 [&_div]:!w-[148px] [&_div]:!h-9" />
-                </div>
+            <div className="ks-section py-4 flex justify-between items-center">
+                <PixelLogo size="md" />
 
                 <div className="hidden md:flex items-center gap-7">
                     <button

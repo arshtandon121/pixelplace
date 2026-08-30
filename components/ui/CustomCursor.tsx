@@ -1,94 +1,64 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion, useSpring, useMotionValue } from 'framer-motion'
+import { useEffect, useRef } from 'react'
+
+const HOVER = 'a,button,input,textarea,select,label,[role="button"],[data-cursor]'
 
 export default function CustomCursor() {
-    const [isPointer, setIsPointer] = useState(false)
-    const [isVisible, setIsVisible] = useState(false)
+  const dotRef = useRef<HTMLDivElement>(null)
 
-    const mouseX = useMotionValue(0)
-    const mouseY = useMotionValue(0)
+  useEffect(() => {
+    const dot = dotRef.current
+    if (!dot) return
 
-    // Smooth springs for the cursor movement
-    const springConfig = { damping: 25, stiffness: 250 }
-    const cursorX = useSpring(mouseX, springConfig)
-    const cursorY = useSpring(mouseY, springConfig)
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const coarse = window.matchMedia('(pointer: coarse)').matches
+    if (reduced || coarse) {
+      document.body.classList.remove('md:cursor-none')
+      return
+    }
 
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            mouseX.set(e.clientX)
-            mouseY.set(e.clientY)
-            if (!isVisible) setIsVisible(true)
+    let hovering = false
 
-            // Check if hovering over interactive elements
-            const target = e.target as HTMLElement
-            const isSelectable =
-                window.getComputedStyle(target).cursor === 'pointer' ||
-                target.tagName.toLowerCase() === 'button' ||
-                target.tagName.toLowerCase() === 'a' ||
-                target.closest('button') ||
-                target.closest('a') ||
-                target.hasAttribute('data-cursor')
+    const onMove = (e: MouseEvent) => {
+      const nextHover = !!(e.target as HTMLElement | null)?.closest(HOVER)
+      if (nextHover !== hovering) {
+        hovering = nextHover
+        dot.style.background = hovering ? 'transparent' : 'var(--ks-kinpaku)'
+        dot.style.width = hovering ? '14px' : '10px'
+        dot.style.height = hovering ? '14px' : '10px'
+      }
+      dot.style.opacity = '1'
+      dot.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0) translate(-50%,-50%)`
+    }
 
-            setIsPointer(!!isSelectable)
-        }
+    const onLeave = () => {
+      dot.style.opacity = '0'
+    }
 
-        const handleMouseLeave = () => setIsVisible(false)
-        const handleMouseEnter = () => setIsVisible(true)
+    window.addEventListener('mousemove', onMove, { passive: true })
+    document.addEventListener('mouseleave', onLeave)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseleave', onLeave)
+    }
+  }, [])
 
-        window.addEventListener('mousemove', handleMouseMove)
-        document.addEventListener('mouseleave', handleMouseLeave)
-        document.addEventListener('mouseenter', handleMouseEnter)
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove)
-            document.removeEventListener('mouseleave', handleMouseLeave)
-            document.removeEventListener('mouseenter', handleMouseEnter)
-        }
-    }, [mouseX, mouseY, isVisible])
-
-    if (!isVisible) return null
-
-    return (
-        <div className="fixed inset-0 pointer-events-none z-[9999] mix-blend-difference hidden md:block">
-            {/* Outer Ring */}
-            <motion.div
-                className="absolute top-0 left-0 w-8 h-8 rounded-full border border-[#BF953F] opacity-50"
-                style={{
-                    x: cursorX,
-                    y: cursorY,
-                    translateX: '-50%',
-                    translateY: '-50%',
-                    scale: isPointer ? 2.5 : 1,
-                }}
-                transition={{ type: 'spring', damping: 20, stiffness: 300, mass: 0.5 }}
-            />
-
-            {/* Dynamic Glow */}
-            <motion.div
-                className="absolute top-0 left-0 w-8 h-8 rounded-full bg-[#BF953F]/10 blur-sm"
-                style={{
-                    x: cursorX,
-                    y: cursorY,
-                    translateX: '-50%',
-                    translateY: '-50%',
-                    scale: isPointer ? 3 : 0.5,
-                    opacity: isPointer ? 0.6 : 0,
-                }}
-            />
-
-            {/* Center Dot */}
-            <motion.div
-                className="absolute top-0 left-0 w-1.5 h-1.5 rounded-full bg-[#FCF6BA]"
-                style={{
-                    x: mouseX,
-                    y: mouseY,
-                    translateX: '-50%',
-                    translateY: '-50%',
-                    scale: isPointer ? 0 : 1,
-                }}
-            />
-        </div>
-    )
+  return (
+    <div
+      ref={dotRef}
+      aria-hidden
+      className="pointer-events-none fixed top-0 left-0 z-[9999] hidden md:block"
+      style={{
+        width: 10,
+        height: 10,
+        opacity: 0,
+        background: 'var(--ks-kinpaku)',
+        border: '1px solid var(--ks-kinpaku)',
+        borderRadius: 1,
+        willChange: 'transform',
+        contain: 'layout style',
+      }}
+    />
+  )
 }
