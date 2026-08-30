@@ -1,45 +1,64 @@
 'use client'
 
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { motion, useReducedMotion } from 'framer-motion'
 import PixelGrid from '@/components/PixelGrid'
+import { GRID_SIZE } from '@/lib/constants'
 
 interface CanvasPreviewProps {
     ownedPixels: any[]
 }
 
 export default function CanvasPreview({ ownedPixels }: CanvasPreviewProps) {
+    const router = useRouter()
+    const reduceMotion = useReducedMotion()
+    const livePixels = ownedPixels.length
+    const available = GRID_SIZE * GRID_SIZE - livePixels
+
     return (
-        <div className="mb-20 md:mb-32 flex justify-center perspective-1000">
-            <div className="glass-panel p-1 relative group shadow-2xl w-full max-w-[650px] border border-[#BF953F]/30">
-                {/* Gold Border Glow */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-[#BF953F] via-[#FCF6BA] to-[#BF953F] rounded-2xl opacity-30 blur-md group-hover:opacity-60 transition-opacity duration-700" />
+        <div id="live-canvas" className="w-full">
+            <div className="flex items-end justify-between gap-4 mb-3">
+                <p className="ks-mono text-[var(--ks-muted)]">
+                    {GRID_SIZE} × {GRID_SIZE}
+                    <span className="mx-3 text-[var(--ks-rule-strong)]">/</span>
+                    {livePixels} live
+                    <span className="mx-3 text-[var(--ks-rule-strong)]">/</span>
+                    {available.toLocaleString()} open
+                </p>
+                <div className="flex items-center gap-3">
+                    <span className="ks-mono inline-flex items-center gap-2 text-[var(--ks-patina-text)]">
+                        <span className="relative flex h-1.5 w-1.5">
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--ks-patina)] opacity-60" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[var(--ks-patina)]" />
+                        </span>
+                        Live
+                    </span>
+                    <Link href="/canvas" className="ks-mono text-[var(--ks-kinpaku)] hover:text-[var(--ks-champagne)] transition-colors">
+                        Open full canvas →
+                    </Link>
+                </div>
+            </div>
 
-                <div className="bg-slate-950/90 rounded-xl p-4 md:p-8 relative z-10">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-6 relative z-10 gap-3">
-                        <div>
-                            <h2 className="text-lg md:text-2xl font-bold text-[#FCF6BA] font-serif">Live Estate Preview</h2>
-                            <p className="text-[#BF953F] text-xs md:text-sm tracking-widest uppercase">Limited: {50 * 50 - ownedPixels.length} Blocks</p>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs font-mono text-[#FCF6BA] bg-[#BF953F]/10 px-3 py-1.5 rounded border border-[#BF953F]/30">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#BF953F] opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FCF6BA]"></span>
-                            </span>
-                            LIVE
-                        </div>
-                    </div>
-
-                    <div className="flex justify-center relative z-10 overflow-x-auto">
+            <motion.div
+                initial={reduceMotion ? false : { opacity: 0, clipPath: 'inset(6% 6% 6% 6%)' }}
+                animate={{ opacity: 1, clipPath: 'inset(0% 0% 0% 0%)' }}
+                transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                className="ks-plinth p-2 sm:p-3"
+            >
+                <div className="flex justify-center overflow-hidden h-[330px] min-[400px]:h-[390px] sm:h-[490px] md:h-auto bg-[var(--ks-lacquer)]">
+                    <div className="origin-top scale-[0.52] min-[400px]:scale-[0.62] sm:scale-[0.78] md:scale-100">
                         <PixelGrid
                             ownedPixels={ownedPixels}
                             selectedPixels={[]}
-                            onPixelClick={() => { }}
+                            onPixelClick={() => router.push('/canvas')}
                             onPixelHover={() => { }}
                             previewImage={null}
                             showTooltip={false}
                         />
                     </div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     )
 }

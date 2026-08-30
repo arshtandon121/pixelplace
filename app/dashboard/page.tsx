@@ -132,7 +132,7 @@ function DashboardContent() {
             })
             const confirmData = await confirmRes.json()
             if (confirmRes.ok && confirmData.status === 'completed') {
-              toast.success('Payment confirmed. Your estate is live.')
+              toast.success('Payment confirmed. Your listing is live.')
             } else if (confirmRes.ok && confirmData.status && confirmData.status !== 'completed') {
               toast('Payment is still processing. This page will update shortly.')
             }
@@ -140,7 +140,7 @@ function DashboardContent() {
             console.error('Checkout confirm error:', error)
           }
         } else if (searchParams?.get('success') === 'true') {
-          toast.success('Acquisition completed successfully.')
+          toast.success('Payment completed. Your listing is live.')
         }
 
         const [pixelsRes, purchasesRes] = await Promise.all([
@@ -155,7 +155,7 @@ function DashboardContent() {
         if (purchasesData.purchases) setPurchases(purchasesData.purchases)
       } catch (error) {
         console.error('Failed to fetch data:', error)
-        toast.error('Failed to load estate or purchases')
+        toast.error('Failed to load listings')
       } finally {
         setLoading(false)
       }
@@ -213,11 +213,11 @@ function DashboardContent() {
         const data = await res.json()
         setPixels(data.pixels || [])
       } else {
-        toast.error('Failed to load your estate')
+        toast.error('Failed to load your listings')
       }
     } catch (error) {
       console.error('Dashboard load error:', error)
-      toast.error('Failed to load estate')
+        toast.error('Failed to load listings')
     } finally {
       setLoading(false)
     }
@@ -256,11 +256,11 @@ function DashboardContent() {
       })
 
       if (res.ok) {
-        toast.success(`Estate released successfully`)
+        toast.success(`Listing ended`)
         loadUserPixels()
         setReleasingGroup(null)
       } else {
-        toast.error('Failed to release estate')
+        toast.error('Failed to end listing')
       }
     } catch (error) {
       toast.error('Failed to delete pixels')
@@ -451,25 +451,25 @@ function DashboardContent() {
             <div>
               <h2 className="text-2xl font-serif font-bold text-[#FCF6BA] flex items-center gap-3">
                 <Box className="w-6 h-6 text-[#BF953F]" />
-                Active Estate Portfolio
+                Active listings
               </h2>
-              <p className="text-slate-400 text-sm mt-1">Manage your owned digital assets</p>
+              <p className="text-slate-400 text-sm mt-1">Manage your live brand display</p>
             </div>
 
             <Link href="/canvas" className="btn-luxury text-sm py-2 px-6 flex items-center gap-2">
-              <Layers className="w-4 h-4" /> Acquire New
+              <Layers className="w-4 h-4" /> New listing
             </Link>
           </div>
 
           {pixels.length === 0 ? (
             <div className="glass-panel p-12 text-center border-dashed border-[#BF953F]/30 bg-[#BF953F]/5">
               <Box className="w-16 h-16 text-[#BF953F]/40 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">No Active Assets</h3>
+              <h3 className="text-xl font-bold text-white mb-2">No live listings</h3>
               <p className="text-slate-400 max-w-md mx-auto mb-8">
-                You currently do not own any digital estate on PixelPlace. Begin your legacy today.
+                You do not have a listing on the canvas yet. Pick open pixels to display your logo and link.
               </p>
               <Link href="/canvas" className="btn-luxury inline-flex items-center gap-2">
-                View Availability
+                Open canvas
               </Link>
             </div>
           ) : (
@@ -584,7 +584,7 @@ function DashboardContent() {
                   <div className="p-6 flex-1 flex flex-col font-serif">
                     <div className="mb-6">
                       <div className="flex justify-between items-start">
-                        <h3 className="text-xl font-bold text-[#FCF6BA] mb-1">Premier Digital Estate</h3>
+                        <h3 className="text-xl font-bold text-[#FCF6BA] mb-1">Brand listing</h3>
                         {group.status === 'completed' && (
                           <button
                             onClick={() => {
@@ -611,7 +611,7 @@ function DashboardContent() {
 
                     <div className="grid grid-cols-2 gap-4 mb-6 pt-4 border-t border-[#BF953F]/10">
                       <div>
-                        <div className="text-[10px] text-slate-400 uppercase tracking-widest">Acquired:</div>
+                        <div className="text-[10px] text-slate-400 uppercase tracking-widest">Started:</div>
                         <div className="text-sm text-white font-serif">{group.pixels.length > 0 ? new Date(group.pixels[0].purchasedAt || Date.now()).toLocaleDateString() : 'N/A'}</div>
                       </div>
                       <div>
@@ -674,7 +674,7 @@ function DashboardContent() {
                           onClick={() => setReleasingGroup({ pixels: group.pixels, count: group.count })}
                           className="w-full py-3.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-red-500/20"
                         >
-                          Release Portfolio
+                          End listing
                         </button>
                       )}
                     </div>
@@ -701,9 +701,9 @@ function DashboardContent() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               className="bg-slate-900 border border-[#BF953F]/30 rounded-2xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(191,149,63,0.1)] relative"
             >
-              <h3 className="text-2xl font-serif font-bold text-[#FCF6BA] mb-2 tracking-tight">Update Estate Domain</h3>
+              <h3 className="text-2xl font-serif font-bold text-[#FCF6BA] mb-2 tracking-tight">Update listing link</h3>
               <p className="text-slate-400 text-sm mb-8">
-                Modify the destination URL for your digital real estate. Changes reflect instantly on the public canvas.
+                Change the website visitors open when they click your pixels. It updates on the public canvas right away.
               </p>
 
               <div className="space-y-6">
@@ -759,7 +759,7 @@ function DashboardContent() {
                 <LogOut className="w-10 h-10 text-red-500" />
               </div>
 
-              <h3 className="text-2xl font-serif font-bold text-white mb-3 tracking-tight">Release Digital Estate?</h3>
+              <h3 className="text-2xl font-serif font-bold text-white mb-3 tracking-tight">End this listing?</h3>
               <p className="text-slate-400 text-sm leading-relaxed mb-8">
                 Proceeding will return <span className="text-white font-bold">{releasingGroup.count} pixels</span> to the public domain. This action is irreversible and your lease will be permanently terminated.
               </p>

@@ -1,56 +1,38 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { DollarSign, Users, Layers, Zap } from 'lucide-react'
-
 const features = [
     {
-        icon: DollarSign,
-        title: 'Revenue Potential',
-        description: 'Your pixel space appreciates in value as the platform grows. Early adopters benefit most.'
+        title: 'Public brand display',
+        description: 'Your logo and link sit on a live page anyone can open. Advertising space on our canvas — not an investment product.',
     },
     {
-        icon: Users,
-        title: 'Elite Community',
-        description: 'Join a curated network of premium brands and forward-thinking entrepreneurs.'
+        title: 'One hour to one year',
+        description: 'Hour, day, and week are one-time. Month and year can auto-renew until you cancel.',
     },
     {
-        icon: Layers,
-        title: 'Exclusive Ownership',
-        description: 'Total control over your designated space. Update your creative, link to your empire.'
+        title: 'Your link, your creative',
+        description: 'Change the destination URL from the dashboard while the listing is live.',
     },
     {
-        icon: Zap,
-        title: 'Instant Visibility',
-        description: 'Your brand displayed on a high-traffic digital landmark, seen by thousands daily.'
-    }
+        title: 'Live after payment',
+        description: 'Successful payment turns the listing on. You get a receipt and manage it from the dashboard.',
+    },
 ]
 
 export default function Features() {
     return (
-        <div className="grid md:grid-cols-2 gap-8 mb-32">
-            {features.map((feature, index) => (
-                <motion.div
-                    key={feature.title}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                    className="glass-panel p-8 hover:border-[#BF953F]/30 transition-all duration-500 group"
-                >
-                    <div className="flex items-start gap-4">
-                        <div className="p-3 rounded-xl bg-[#BF953F]/10 border border-[#BF953F]/20 group-hover:bg-[#BF953F]/20 transition-colors">
-                            <feature.icon className="w-6 h-6 text-[#FCF6BA]" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-[#FCF6BA] mb-2 font-serif">{feature.title}</h3>
-                            <p className="text-slate-400 leading-relaxed">
-                                {feature.description}
-                            </p>
-                        </div>
+        <section id="features" className="mb-24 md:mb-32">
+            <h2 className="ks-headline mb-12">What you actually get</h2>
+            <div className="grid md:grid-cols-2 gap-x-16 gap-y-12">
+                {features.map((feature) => (
+                    <div key={feature.title} className="border-t border-[var(--ks-rule)] pt-6">
+                        <h3 className="text-[var(--ks-champagne)] text-lg mb-3">{feature.title}</h3>
+                        <p className="text-[var(--ks-muted)] text-[15px] leading-[1.7] max-w-[48ch]">
+                            {feature.description}
+                        </p>
                     </div>
-                </motion.div>
-            ))}
-        </div>
+                ))}
+            </div>
+        </section>
     )
 }

@@ -43,9 +43,10 @@ module.exports = {
         }
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        serif: ['var(--font-playfair)', 'Georgia', 'serif'],
-        mono: ['var(--font-jetbrains-mono)', 'monospace'],
+        sans: ['var(--font-sans)', 'Avenir Next', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        serif: ['var(--font-display)', 'Albert Sans', 'sans-serif'],
+        display: ['var(--font-display)', 'Albert Sans', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Minus, Move, ExternalLink, TrendingUp, ShieldCheck, User } from 'lucide-react'
+import { Plus, Minus, Move, ExternalLink, ShieldCheck, User } from 'lucide-react'
 import { useAudio } from '@/hooks/useAudio'
 import { useState, useMemo, memo, useCallback } from 'react'
 import { GRID_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT, BLOCKS_PER_ROW, BLOCKS_PER_COL, PIXEL_PRICE_PER_MONTH } from '@/lib/constants'
@@ -394,7 +394,7 @@ export default function PixelGrid({
                 <img
                   src={tooltipData.pixel?.imageFileId ? `/api/images/${tooltipData.pixel.imageFileId}` : tooltipData.pixel?.imageUrl}
                   className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700"
-                  alt="Estate Preview"
+                  alt="Listing preview"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 to-black">
@@ -404,7 +404,7 @@ export default function PixelGrid({
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-4 flex items-center gap-2">
                 <div className="px-2 py-0.5 rounded-full bg-[#BF953F] text-[10px] font-bold text-black uppercase tracking-wider">
-                  {isOwned(tooltipData.pixel?.x || 0, tooltipData.pixel?.y || 0) ? 'Established' : 'Prime Sector'}
+                  {isOwned(tooltipData.pixel?.x || 0, tooltipData.pixel?.y || 0) ? 'Live listing' : 'Open'}
                 </div>
               </div>
             </div>
@@ -414,40 +414,35 @@ export default function PixelGrid({
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h4 className="text-[#FCF6BA] font-serif font-bold text-lg mb-0.5">
-                    {tooltipData.pixel?.username || 'Digital Estate'}
+                    {tooltipData.pixel?.username || 'Pixel listing'}
                   </h4>
                   <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold">
-                    Section {tooltipData.pixel?.x}, {tooltipData.pixel?.y}
+                    Pixel {tooltipData.pixel?.x}, {tooltipData.pixel?.y}
                   </p>
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="text-[#BF953F] font-bold text-sm">₹{(tooltipData.pixel?.price || PIXEL_PRICE_PER_MONTH).toLocaleString()}</span>
-                  <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-bold">
-                    <TrendingUp className="w-2.5 h-2.5" />
-                    +12%
-                  </div>
+                  <span className="text-[9px] text-slate-500 font-bold">per month</span>
                 </div>
               </div>
 
-              {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div className="bg-black/40 p-2 rounded-xl border border-white/5">
-                  <span className="block text-[8px] text-slate-500 uppercase tracking-wider mb-1">Rarity</span>
-                  <span className="text-[10px] text-slate-200 font-bold">Exalted</span>
+                  <span className="block text-[8px] text-slate-500 uppercase tracking-wider mb-1">Type</span>
+                  <span className="text-[10px] text-slate-200 font-bold">Brand display</span>
                 </div>
                 <div className="bg-black/40 p-2 rounded-xl border border-white/5 text-right">
                   <span className="block text-[8px] text-slate-500 uppercase tracking-wider mb-1">Status</span>
-                  <span className="text-[10px] text-slate-200 font-bold">Verified</span>
+                  <span className="text-[10px] text-slate-200 font-bold">{isOwned(tooltipData.pixel?.x || 0, tooltipData.pixel?.y || 0) ? 'Live' : 'Available'}</span>
                 </div>
               </div>
 
-              {/* Action Button */}
               {tooltipData.pixel?.linkUrl ? (
                 <button
                   onClick={() => window.open(tooltipData.pixel?.linkUrl, '_blank')}
                   className="w-full py-2.5 bg-[#BF953F] hover:bg-[#FCF6BA] text-black text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 group"
                 >
-                  Discover Portfolio
+                  Visit website
                   <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </button>
               ) : (
@@ -455,7 +450,7 @@ export default function PixelGrid({
                   onClick={() => onPixelClick(tooltipData.pixel?.x || 0, tooltipData.pixel?.y || 0)}
                   className="w-full py-2.5 bg-white/5 hover:bg-[#BF953F]/20 text-[#FCF6BA] border border-[#BF953F]/30 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                 >
-                  Acquire Estate
+                  Place your brand
                 </button>
               )}
             </div>

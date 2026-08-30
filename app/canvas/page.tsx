@@ -149,14 +149,14 @@ export default function CanvasPage() {
   const handlePixelClick = (x: number, y: number) => {
     const isOwned = ownedPixels.some(p => p.x === x && p.y === y)
     if (isOwned) {
-      toast.error('This estate is already owned')
+      toast.error('This block is already listed')
       return
     }
 
     const availableBlock = findAvailableBlockForPixel(x, y)
 
     if (!availableBlock || availableBlock.length === 0) {
-      toast.error('This block is not completely available. Please select a fully available estate.')
+      toast.error('This block is not fully open. Pick a fully available block.')
       return
     }
 
@@ -168,13 +168,13 @@ export default function CanvasPage() {
       setSelectedPixels(selectedPixels.filter(p =>
         !availableBlock.some(ab => ab.x === p.x && ab.y === p.y)
       ))
-      toast.success(`Deselected estate (${availableBlock.length} units)`)
+      toast.success(`Deselected block (${availableBlock.length} pixels)`)
     } else {
       const newSelection = selectedPixels.filter(p =>
         !availableBlock.some(ab => ab.x === p.x && ab.y === p.y)
       )
       setSelectedPixels([...newSelection, ...availableBlock])
-      toast.success(`Selected estate: ${availableBlock.length} units`)
+      toast.success(`Selected block: ${availableBlock.length} pixels`)
     }
   }
 
@@ -206,7 +206,7 @@ export default function CanvasPage() {
 
   const startPolarCheckout = async () => {
     if (!uploadedImage) {
-      toast.error('Please upload your insignia image')
+      toast.error('Please upload your logo image')
       return
     }
 
@@ -262,7 +262,7 @@ export default function CanvasPage() {
           className="text-center"
         >
           <div className="w-16 h-16 border-4 border-[#BF953F] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-xl font-serif">Loading Estate...</div>
+          <div className="text-xl font-serif">Loading canvas...</div>
         </motion.div>
       </div>
     )
@@ -318,7 +318,7 @@ export default function CanvasPage() {
             </Link>
             <div className="hidden md:block h-8 w-px bg-[#BF953F]/30" />
             <h1 className="hidden md:block text-lg lg:text-xl font-bold font-serif text-[#FCF6BA]">
-              Digital Estate Canvas
+              Live pixel canvas
             </h1>
           </div>
 
@@ -389,7 +389,7 @@ export default function CanvasPage() {
 
                   <div className="pt-3 md:pt-4 border-t border-[#BF953F]/20">
                     <div className="flex justify-between items-end mb-2">
-                      <span className="text-slate-400 text-xs md:text-sm">Total Investment</span>
+                      <span className="text-slate-400 text-xs md:text-sm">Listing total</span>
                       <div className="text-right">
                         <div className="text-xl md:text-2xl font-bold text-[#FCF6BA] font-serif">
                           ₹{membershipPriceInr(selectedPixels.length, packageId).toLocaleString()}
@@ -408,7 +408,7 @@ export default function CanvasPage() {
                 </div>
               ) : (
                 <div className="text-center py-6 md:py-8 text-slate-500">
-                  <p className="text-xs md:text-sm">Select available blocks on the grid to begin your acquisition.</p>
+                  <p className="text-xs md:text-sm">Select an open block to place your logo and link.</p>
                 </div>
               )}
             </div>
@@ -424,12 +424,12 @@ export default function CanvasPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-[#BF953F]/5 to-transparent pointer-events-none" />
                 <h2 className="text-[#FCF6BA] font-bold mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
                   <Upload className="w-4 h-4 text-[#BF953F]" />
-                  Configure Estate
+                  Listing details
                 </h2>
 
                 <div className="space-y-3 md:space-y-4 relative z-10">
                   <div>
-                    <label className="block text-[10px] md:text-xs font-bold text-[#BF953F] uppercase mb-2">Estate Insignia (Image)</label>
+                    <label className="block text-[10px] md:text-xs font-bold text-[#BF953F] uppercase mb-2">Logo image</label>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => document.getElementById('image-upload')?.click()}
@@ -490,7 +490,7 @@ export default function CanvasPage() {
 
             {/* Guidelines */}
             <div className="glass-panel p-4 md:p-6 border-white/5">
-              <h3 className="text-slate-300 font-bold mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wide">Acquisition Guide</h3>
+              <h3 className="text-slate-300 font-bold mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wide">How to list</h3>
               <ul className="space-y-2 md:space-y-3 text-[10px] md:text-xs text-slate-400 leading-relaxed">
                 <li className="flex gap-2">
                   <span className="text-[#BF953F] font-bold">01.</span>
@@ -502,11 +502,11 @@ export default function CanvasPage() {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#BF953F] font-bold">03.</span>
-                  <span>Upload your insignia and link.</span>
+                  <span>Upload your logo and link.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#BF953F] font-bold">04.</span>
-                  <span>Pay securely — your estate goes live automatically.</span>
+                  <span>Pay securely — your listing goes live automatically.</span>
                 </li>
               </ul>
             </div>
@@ -628,8 +628,8 @@ export default function CanvasPage() {
               </button>
 
               <div className="text-center mb-5 md:mb-6">
-                <h3 className="text-xl md:text-2xl font-serif font-bold text-[#FCF6BA] mb-2">Secure Acquisition</h3>
-                <p className="text-slate-400 text-xs md:text-sm">Pay with Polar. Ownership goes live the moment payment succeeds.</p>
+                <h3 className="text-xl md:text-2xl font-serif font-bold text-[#FCF6BA] mb-2">Checkout</h3>
+                <p className="text-slate-400 text-xs md:text-sm">Pay securely. Your listing goes live as soon as payment succeeds.</p>
               </div>
 
               <div className="space-y-6">

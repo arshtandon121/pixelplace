@@ -14,122 +14,67 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
     useEffect(() => {
         const handleScroll = () => {
-            setIsScrolled(window.scrollY > 50)
+            setIsScrolled(window.scrollY > 24)
         }
         window.addEventListener('scroll', handleScroll)
         return () => window.removeEventListener('scroll', handleScroll)
     }, [])
 
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ease-in-out ${isScrolled ? 'bg-black/80 backdrop-blur-md border-b border-[#BF953F]/20' : 'bg-transparent'}`}>
-            <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-                <div className="flex items-center">
-                    <PixelLogo size="sm" />
+        <nav className={`fixed top-0 left-0 right-0 z-50 transition-[background,border-color] duration-500 ${isScrolled ? 'bg-[var(--ks-lacquer)]/92 backdrop-blur-md border-b border-[var(--ks-rule)]' : 'bg-transparent'}`}>
+            <div className="ks-section py-3 flex justify-between items-center">
+                <div className="max-h-9 max-w-[148px] overflow-hidden flex items-center">
+                    <PixelLogo size="sm" className="!gap-0 [&_div]:!w-[148px] [&_div]:!h-9" />
                 </div>
 
-                {/* Desktop Menu */}
-                <div className="hidden md:flex items-center gap-8">
+                <div className="hidden md:flex items-center gap-7">
                     <button
                         onClick={toggleAudio}
-                        className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-[#BF953F]/10 hover:border-[#BF953F]/30 transition-all group"
-                        title={audioEnabled ? "Disable Sounds" : "Enable Sounds"}
+                        className="p-2 text-[var(--ks-muted)] hover:text-[var(--ks-kinpaku)] transition-colors"
+                        title={audioEnabled ? 'Disable sounds' : 'Enable sounds'}
                     >
-                        {audioEnabled ? (
-                            <Volume2 className="w-5 h-5 text-[#FCF6BA]" />
-                        ) : (
-                            <VolumeX className="w-5 h-5 text-slate-500" />
-                        )}
+                        {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                     </button>
-
-                    <Link href="/canvas" className="text-sm font-medium text-slate-200 hover:text-[#FCF6BA] transition-colors uppercase tracking-widest">
-                        Canvas
+                    <Link href="/#live-canvas" className="ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)]">
+                        Live canvas
                     </Link>
-
+                    <Link href="/canvas" className="btn-luxury !py-2.5 !px-5 text-sm">
+                        Place a listing
+                    </Link>
                     {isLoggedIn ? (
-                        <Link href="/dashboard" className="px-6 py-2 text-sm bg-white/10 backdrop-blur-sm text-white font-bold hover:bg-white/20 border border-white/20 rounded-lg transition-all">
+                        <Link href="/dashboard" className="ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)]">
                             Dashboard
                         </Link>
                     ) : (
-                        <div className="flex items-center gap-6">
-                            <Link href="/login" className="text-sm text-white/90 hover:text-white font-medium transition-colors">
-                                Login
-                            </Link>
-                            <Link href="/signup" className="px-6 py-2 text-sm bg-white/10 backdrop-blur-sm text-white font-bold hover:bg-white/20 border border-white/20 rounded-lg transition-all">
-                                Sign Up
-                            </Link>
-                        </div>
+                        <Link href="/login" className="ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)]">
+                            Login
+                        </Link>
                     )}
                 </div>
 
-                {/* Mobile Menu Button */}
                 <button
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                    className="md:hidden p-2 text-white bg-black/20 backdrop-blur-sm rounded-lg border border-white/10 hover:bg-white/10 transition-all"
+                    className="md:hidden p-2 text-[var(--ks-champagne)]"
                 >
-                    {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                    {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </button>
             </div>
 
-            {/* Mobile Menu */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="md:hidden bg-black/95 backdrop-blur-lg border-t border-[#BF953F]/10 overflow-hidden"
+                        className="md:hidden bg-[var(--ks-lacquer)] border-t border-[var(--ks-rule)] overflow-hidden"
                     >
-                        <div className="container mx-auto px-4 py-8 flex flex-col gap-6 items-center">
-                            <button
-                                onClick={toggleAudio}
-                                className="flex items-center gap-3 px-6 py-3 rounded-xl bg-white/5 border border-white/10 w-full justify-center"
-                            >
-                                {audioEnabled ? (
-                                    <>
-                                        <Volume2 className="w-5 h-5 text-[#FCF6BA]" />
-                                        <span className="text-sm text-white">Sounds Enabled</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <VolumeX className="w-5 h-5 text-slate-500" />
-                                        <span className="text-sm text-slate-400">Sounds Disabled</span>
-                                    </>
-                                )}
-                            </button>
-
-                            <Link
-                                href="/canvas"
-                                className="text-lg text-slate-200 hover:text-[#FCF6BA] transition-colors uppercase tracking-widest"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                Canvas
-                            </Link>
-
+                        <div className="ks-section py-6 flex flex-col gap-4">
+                            <Link href="/#live-canvas" className="ks-mono text-[var(--ks-champagne)]" onClick={() => setIsMobileMenuOpen(false)}>Live canvas</Link>
+                            <Link href="/canvas" className="ks-mono text-[var(--ks-champagne)]" onClick={() => setIsMobileMenuOpen(false)}>Place a listing</Link>
                             {isLoggedIn ? (
-                                <Link
-                                    href="/dashboard"
-                                    className="w-full text-center py-4 bg-white/10 text-white font-bold rounded-xl border border-white/20"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Dashboard
-                                </Link>
+                                <Link href="/dashboard" className="ks-mono text-[var(--ks-champagne)]" onClick={() => setIsMobileMenuOpen(false)}>Dashboard</Link>
                             ) : (
-                                <div className="flex flex-col w-full gap-4">
-                                    <Link
-                                        href="/login"
-                                        className="w-full text-center py-4 text-white font-medium"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        Login
-                                    </Link>
-                                    <Link
-                                        href="/signup"
-                                        className="w-full text-center py-4 bg-white/10 text-white font-bold rounded-xl border border-white/20"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        Sign Up
-                                    </Link>
-                                </div>
+                                <Link href="/login" className="ks-mono text-[var(--ks-champagne)]" onClick={() => setIsMobileMenuOpen(false)}>Login</Link>
                             )}
                         </div>
                     </motion.div>
