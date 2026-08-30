@@ -53,7 +53,7 @@ export function getPolarWebhookSecret(): string {
 export function getAppUrl(): string {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '')
   if (configured && !configured.includes('localhost')) return configured
-  if (process.env.VERCEL) return 'https://pixelplace.in'
+  if (process.env.VERCEL) return 'https://www.pixelplace.in'
   return configured || 'http://localhost:3000'
 }
 
