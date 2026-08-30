@@ -1,12 +1,10 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { motion } from 'framer-motion'
-import { LogOut, CheckCircle, CreditCard, Image as ImageIcon, Box, Layers, Calendar, ChevronRight, ShieldCheck, ExternalLink, Edit, Link as LinkIcon2, Clock, ArrowLeft } from 'lucide-react'
-import Image from 'next/image'
+import { LogOut, ExternalLink } from 'lucide-react'
 import PixelLogo from '@/components/PixelLogo'
 import { DEFAULT_PACKAGE_ID, formatExpiry, type MembershipPackageId } from '@/lib/membership'
 
@@ -46,6 +44,135 @@ interface Purchase {
   autoRenew?: boolean
 }
 
+type ListingGroup = {
+  imageUrl?: string
+  imageFileId?: string
+  linkUrl?: string
+  pixels: Pixel[]
+  count: number
+  expiresAt?: Date
+  purchasedAt?: Date
+  status?: 'pending' | 'completed' | 'rejected'
+  orderId?: string
+  refundDetails?: any
+  packageId?: MembershipPackageId
+  packageLabel?: string
+  autoRenew?: boolean
+  rejectionReason?: string
+}
+
+function pickPurchaseForPixel(purchases: Purchase[], pixel: Pixel): Purchase | undefined {
+  const matching = purchases.filter((p) =>
+    p.coordinates?.some((coord) => coord.x === pixel.x && coord.y === pixel.y)
+  )
+  if (matching.length === 0) return undefined
+  const rank = (status?: string) => (status === 'completed' ? 3 : status === 'pending' ? 1 : 0)
+  return [...matching].sort((a, b) => {
+    const byStatus = rank(b.status) - rank(a.status)
+    if (byStatus !== 0) return byStatus
+    return new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime()
+  })[0]
+}
+
+function buildListingGroups(pixels: Pixel[], purchases: Purchase[]): ListingGroup[] {
+  const groupMap = new Map<string, ListingGroup>()
+
+  pixels.forEach((pixel) => {
+    const key = `${pixel.imageFileId || pixel.imageUrl || 'no-image'}_${pixel.linkUrl || 'no-link'}`
+    if (!groupMap.has(key)) {
+      const purchase = pickPurchaseForPixel(purchases, pixel)
+      groupMap.set(key, {
+        imageUrl: pixel.imageUrl,
+        imageFileId: pixel.imageFileId,
+        linkUrl: pixel.linkUrl,
+        pixels: [],
+        count: 0,
+        expiresAt: pixel.expiresAt,
+        purchasedAt: pixel.purchasedAt,
+        status: purchase?.status,
+        orderId: purchase?.orderId,
+        refundDetails: purchase?.refundDetails,
+        packageId: purchase?.packageId,
+        packageLabel: purchase?.packageLabel,
+        autoRenew: purchase?.autoRenew,
+        rejectionReason: purchase?.rejectionReason,
+      })
+    }
+    const group = groupMap.get(key)!
+    group.pixels.push(pixel)
+    group.count++
+  })
+
+  purchases.forEach((purchase) => {
+    if (purchase.status !== 'rejected') return
+    const key = `${purchase.imageFileId || purchase.imageUrl || 'no-image'}_${purchase.linkUrl || 'no-link'}_${purchase.orderId}`
+    if (groupMap.has(key)) return
+    groupMap.set(key, {
+      imageUrl: purchase.imageUrl ?? undefined,
+      imageFileId: purchase.imageFileId ?? undefined,
+      linkUrl: purchase.linkUrl ?? undefined,
+      pixels: [],
+      count: purchase.pixelCount || 0,
+      expiresAt: purchase.purchasedAt,
+      purchasedAt: purchase.purchasedAt,
+      status: 'rejected',
+      orderId: purchase.orderId,
+      refundDetails: purchase.refundDetails,
+      rejectionReason: purchase.rejectionReason,
+    })
+  })
+
+  return Array.from(groupMap.values())
+}
+
+function websiteLabel(url?: string) {
+  if (!url) return 'No website yet'
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+function rupees(amount?: number) {
+  if (amount == null || Number.isNaN(amount)) return '—'
+  return `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+}
+
+function isExpired(expiresAt?: Date) {
+  if (!expiresAt) return false
+  const date = new Date(expiresAt)
+  return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now()
+}
+
+function statusCopy(group: ListingGroup) {
+  if (group.status === 'pending') {
+    return { label: 'Payment pending', hint: 'Payment is still confirming. Your listing goes live after it clears.' }
+  }
+  if (group.status === 'rejected') {
+    return { label: 'Not approved', hint: group.rejectionReason || 'This listing was not approved. You can request a refund.' }
+  }
+  if (isExpired(group.expiresAt)) {
+    return { label: 'Ended', hint: 'This listing is no longer on the canvas.' }
+  }
+  return { label: 'Live', hint: 'Your logo and link are on the public canvas.' }
+}
+
+function orderStatusLabel(status?: string) {
+  if (status === 'completed') return 'Paid'
+  if (status === 'pending') return 'Confirming'
+  if (status === 'rejected') return 'Not approved'
+  return status || '—'
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-[var(--ks-lacquer)] text-[var(--ks-text)]">
+      {children}
+    </div>
+  )
+}
+
 function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -53,13 +180,27 @@ function DashboardContent() {
   const [pixels, setPixels] = useState<Pixel[]>([])
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState(true)
-  const [releasingGroup, setReleasingGroup] = useState<{ pixels: Pixel[], count: number } | null>(null)
-  const [refundingPurchase, setRefundingPurchase] = useState<{ orderId: string, pixels: Pixel[] } | null>(null)
+  const [releasingGroup, setReleasingGroup] = useState<{ pixels: Pixel[]; count: number } | null>(null)
+  const [refundingPurchase, setRefundingPurchase] = useState<{ orderId: string; pixels: Pixel[] } | null>(null)
   const [refundDetails, setRefundDetails] = useState({ accountNumber: '', ifsc: '', upi: '', notes: '', screenshot: null as File | null })
-  const [editingLink, setEditingLink] = useState<{ pixels: Pixel[], currentLink: string } | null>(null)
+  const [editingLink, setEditingLink] = useState<{ pixels: Pixel[]; currentLink: string } | null>(null)
   const [newLink, setNewLink] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
   const [renewingOrderId, setRenewingOrderId] = useState<string | null>(null)
+
+  const listings = useMemo(() => buildListingGroups(pixels, purchases), [pixels, purchases])
+  const orders = useMemo(
+    () => [...purchases].sort((a, b) => new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime()),
+    [purchases]
+  )
+
+  const liveCount = listings.filter((g) => g.status !== 'rejected' && g.status !== 'pending' && !isExpired(g.expiresAt)).length
+  const pendingCount = listings.filter((g) => g.status === 'pending').length
+  const expiringSoon = listings.find((g) => {
+    if (g.status === 'rejected' || g.status === 'pending' || !g.expiresAt) return false
+    const ms = new Date(g.expiresAt).getTime() - Date.now()
+    return ms > 0 && ms < 7 * 24 * 60 * 60 * 1000
+  })
 
   const startRenewal = async (orderId: string, packageId?: MembershipPackageId) => {
     setRenewingOrderId(orderId)
@@ -145,7 +286,7 @@ function DashboardContent() {
 
         const [pixelsRes, purchasesRes] = await Promise.all([
           fetch('/api/pixels/user', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/purchases', { headers: { Authorization: `Bearer ${token}` } })
+          fetch('/api/purchases', { headers: { Authorization: `Bearer ${token}` } }),
         ])
 
         const pixelsData = await pixelsRes.json()
@@ -164,20 +305,6 @@ function DashboardContent() {
     checkAuth()
     fetchData()
   }, [searchParams])
-
-  // Map purchase status to pixels based on coordinates
-  const pickPurchaseForPixel = (pixel: Pixel): Purchase | undefined => {
-    const matching = purchases.filter(p =>
-      p.coordinates?.some((coord: any) => coord.x === pixel.x && coord.y === pixel.y)
-    )
-    if (matching.length === 0) return undefined
-    const rank = (status?: string) => (status === 'completed' ? 3 : status === 'pending' ? 1 : 0)
-    return [...matching].sort((a, b) => {
-      const byStatus = rank(b.status) - rank(a.status)
-      if (byStatus !== 0) return byStatus
-      return new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime()
-    })[0]
-  }
 
   const checkAuth = async () => {
     const token = localStorage.getItem('token')
@@ -217,24 +344,9 @@ function DashboardContent() {
       }
     } catch (error) {
       console.error('Dashboard load error:', error)
-        toast.error('Failed to load listings')
+      toast.error('Failed to load listings')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadPurchases = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('/api/purchases', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setPurchases(data.purchases || [])
-      }
-    } catch (error) {
-      console.error('Error loading purchases:', error)
     }
   }
 
@@ -243,27 +355,27 @@ function DashboardContent() {
     router.push('/')
   }
 
-  const handleRemovePixels = async (pixelsToRemove: { x: number, y: number }[]) => {
+  const handleRemovePixels = async (pixelsToRemove: { x: number; y: number }[]) => {
     try {
       const token = localStorage.getItem('token')
       const res = await fetch('/api/pixels/delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ pixels: pixelsToRemove })
+        body: JSON.stringify({ pixels: pixelsToRemove }),
       })
 
       if (res.ok) {
-        toast.success(`Listing ended`)
+        toast.success('Listing ended')
         loadUserPixels()
         setReleasingGroup(null)
       } else {
         toast.error('Failed to end listing')
       }
     } catch (error) {
-      toast.error('Failed to delete pixels')
+      toast.error('Failed to end listing')
     }
   }
 
@@ -271,7 +383,7 @@ function DashboardContent() {
     if (!refundingPurchase) return
 
     if (!refundDetails.accountNumber && !refundDetails.upi) {
-      toast.error('Please provide either Account Number or UPI ID')
+      toast.error('Add a bank account or a UPI ID')
       return
     }
 
@@ -279,15 +391,14 @@ function DashboardContent() {
       const token = localStorage.getItem('token')
       let screenshotFileId = null
 
-      // Upload screenshot if provided
       if (refundDetails.screenshot) {
         const formData = new FormData()
         formData.append('image', refundDetails.screenshot)
 
         const uploadRes = await fetch('/api/upload', {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
         })
 
         if (uploadRes.ok) {
@@ -300,25 +411,24 @@ function DashboardContent() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           orderId: refundingPurchase.orderId,
           refundDetails: {
             ...refundDetails,
-            screenshot: undefined, // Remove file object
-            screenshotFileId // Add fileId instead
-          }
-        })
+            screenshot: undefined,
+            screenshotFileId,
+          },
+        }),
       })
 
       if (res.ok) {
-        toast.success('Refund request submitted successfully')
+        toast.success('Refund request submitted')
         setRefundingPurchase(null)
         setRefundDetails({ accountNumber: '', ifsc: '', upi: '', notes: '', screenshot: null })
-        // Refresh purchases
         const purchasesRes = await fetch('/api/purchases', {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         })
         const data = await purchasesRes.json()
         if (data.purchases) setPurchases(data.purchases)
@@ -339,16 +449,16 @@ function DashboardContent() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          pixels: editingLink.pixels.map(p => ({ x: p.x, y: p.y })),
-          linkUrl: newLink
-        })
+          pixels: editingLink.pixels.map((p) => ({ x: p.x, y: p.y })),
+          linkUrl: newLink,
+        }),
       })
 
       if (res.ok) {
-        toast.success('Link updated successfully')
+        toast.success('Link updated')
         loadUserPixels()
         setEditingLink(null)
       } else {
@@ -361,543 +471,398 @@ function DashboardContent() {
     }
   }
 
-  const totalSpent = pixels.reduce((sum, pixel) => sum + (pixel.price || 0), 0)
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-[#BF953F]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#BF953F] mr-3"></div>
-        Accesing Vault...
-      </div>
+      <DashboardShell>
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="ks-mono text-[var(--ks-kinpaku)]">Loading your listings</p>
+        </div>
+      </DashboardShell>
     )
   }
 
+  const firstName = user?.name?.split(' ')[0] || 'there'
+
   return (
-    <div className="min-h-screen bg-black text-white p-6 relative overflow-x-hidden">
-      {/* Background Ambience */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-[#BF953F]/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-[#BF953F]/5 rounded-full blur-[150px]" />
-      </div>
-
-      <header className="flex justify-between items-center mb-12 container mx-auto relative z-10 glass-panel p-6 border-gold">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="hover:opacity-80 transition-opacity flex items-center">
-            <PixelLogo size="sm" noLink />
-          </Link>
-          <div className="h-8 w-px bg-[#BF953F]/30" />
-          <h1 className="text-xl font-serif font-bold text-[#FCF6BA]">Dashboard</h1>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="text-right hidden sm:block">
-            <div className="text-xs text-[#BF953F] uppercase tracking-wider font-bold">Welcome Back</div>
-            <div className="font-bold text-white">{user?.name}</div>
+    <DashboardShell>
+      <header className="border-b border-[var(--ks-rule)]">
+        <div className="ks-section py-4 flex justify-between items-center gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <PixelLogo size="sm" />
+            <span className="hidden sm:block h-6 w-px bg-[var(--ks-rule)]" />
+            <h1 className="hidden sm:block text-sm text-[var(--ks-muted)]">Your listings</h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 border border-red-500/20 transition-all text-sm font-medium"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
+          <div className="flex items-center gap-4 sm:gap-6">
+            <Link href="/canvas" className="ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)]">
+              Canvas
+            </Link>
+            <Link href="/canvas" className="btn-luxury !py-2 !px-4 text-sm">
+              Place a listing
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)] flex items-center gap-2"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto relative z-10 space-y-12">
-
-        {/* Stats Grid */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12 animate-slide-up">
-          <div className="bg-gold-glass p-6 rounded-xl">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-[#BF953F]/20 rounded-lg text-[#FCF6BA]">
-                <Box className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-xs text-[#BF953F] uppercase font-bold">Total Assets</div>
-                <div className="text-2xl font-bold text-white font-serif">{pixels.length}</div>
-              </div>
-            </div>
+      <main className="ks-section py-10 md:py-14 space-y-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <p className="ks-mono text-[var(--ks-patina-text)] mb-3">Signed in</p>
+            <h2 className="ks-headline mb-3">Hi {firstName}.</h2>
+            <p className="text-[var(--ks-muted)] text-[15px] leading-[1.7] max-w-[42ch]">
+              This is where you see your logo on the canvas, change the website it opens, and renew before it comes down.
+            </p>
           </div>
-
-          <div className="bg-gold-glass p-6 rounded-xl">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-[#BF953F]/20 rounded-lg text-[#FCF6BA]">
-                <CreditCard className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-xs text-[#BF953F] uppercase font-bold">Portfolio Value</div>
-                <div className="text-2xl font-bold text-white font-serif">₹{totalSpent.toFixed(2)}</div>
-              </div>
+          <div className="flex gap-8">
+            <div>
+              <p className="ks-mono text-[var(--ks-faint)] mb-1">Live now</p>
+              <p className="text-2xl text-[var(--ks-champagne)]">{liveCount}</p>
             </div>
-          </div>
-
-          <div className="bg-gold-glass p-6 rounded-xl">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-emerald-500/10 rounded-lg text-emerald-400">
-                <Layers className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-xs text-emerald-500 uppercase font-bold">Transactions</div>
-                <div className="text-2xl font-bold text-white font-serif">{purchases.length}</div>
-              </div>
+            <div>
+              <p className="ks-mono text-[var(--ks-faint)] mb-1">Pixels</p>
+              <p className="text-2xl text-[var(--ks-champagne)]">{pixels.length}</p>
             </div>
           </div>
         </div>
 
-        {/* Active Estate Section */}
-        <section>
-          <div className="flex justify-between items-end mb-6">
-            <div>
-              <h2 className="text-2xl font-serif font-bold text-[#FCF6BA] flex items-center gap-3">
-                <Box className="w-6 h-6 text-[#BF953F]" />
-                Active listings
-              </h2>
-              <p className="text-slate-400 text-sm mt-1">Manage your live brand display</p>
-            </div>
+        {(pendingCount > 0 || expiringSoon) && (
+          <div className="ks-plinth p-5 md:p-6">
+            {pendingCount > 0 && (
+              <p className="text-[15px] text-[var(--ks-champagne)]">
+                {pendingCount === 1 ? 'One listing is waiting on payment.' : `${pendingCount} listings are waiting on payment.`}{' '}
+                It goes live as soon as payment confirms.
+              </p>
+            )}
+            {expiringSoon && (
+              <p className="text-[15px] text-[var(--ks-champagne)] mt-1">
+                A listing ends {formatExpiry(expiringSoon.expiresAt)}. Renew to keep your logo up.
+              </p>
+            )}
+          </div>
+        )}
 
-            <Link href="/canvas" className="btn-luxury text-sm py-2 px-6 flex items-center gap-2">
-              <Layers className="w-4 h-4" /> New listing
-            </Link>
+        <section>
+          <div className="flex items-end justify-between gap-4 mb-6">
+            <div>
+              <h3 className="text-xl text-[var(--ks-champagne)]">Listings</h3>
+              <p className="text-sm text-[var(--ks-muted)] mt-1">Logo, link, and how long it stays on the grid.</p>
+            </div>
           </div>
 
-          {pixels.length === 0 ? (
-            <div className="glass-panel p-12 text-center border-dashed border-[#BF953F]/30 bg-[#BF953F]/5">
-              <Box className="w-16 h-16 text-[#BF953F]/40 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">No live listings</h3>
-              <p className="text-slate-400 max-w-md mx-auto mb-8">
-                You do not have a listing on the canvas yet. Pick open pixels to display your logo and link.
+          {listings.length === 0 ? (
+            <div className="ks-plinth p-8 md:p-12">
+              <h4 className="text-xl text-[var(--ks-champagne)] mb-2">No listing yet</h4>
+              <p className="text-[var(--ks-muted)] text-[15px] leading-[1.7] max-w-[46ch] mb-8">
+                Pick open pixels, add your logo and website, then pay. The listing goes live on the public canvas after payment.
               </p>
-              <Link href="/canvas" className="btn-luxury inline-flex items-center gap-2">
-                Open canvas
+              <ol className="grid sm:grid-cols-3 gap-6 mb-10 text-sm text-[var(--ks-muted)]">
+                <li>
+                  <p className="ks-mono text-[var(--ks-kinpaku)] mb-2">01</p>
+                  Pick open pixels on the canvas
+                </li>
+                <li>
+                  <p className="ks-mono text-[var(--ks-kinpaku)] mb-2">02</p>
+                  Upload your logo and a website
+                </li>
+                <li>
+                  <p className="ks-mono text-[var(--ks-kinpaku)] mb-2">03</p>
+                  Pay — it goes live
+                </li>
+              </ol>
+              <Link href="/canvas" className="btn-luxury">
+                Place a listing
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(() => {
-                const groups: Array<{
-                  imageUrl?: string
-                  imageFileId?: string
-                  linkUrl?: string
-                  pixels: Pixel[]
-                  count: number
-                  expiresAt?: Date
-                  status?: 'pending' | 'completed' | 'rejected'
-                  orderId?: string
-                  refundDetails?: any
-                  packageId?: MembershipPackageId
-                  packageLabel?: string
-                  autoRenew?: boolean
-                }> = []
-
-                const groupMap = new Map<string, typeof groups[0]>()
-
-                // First, add all pixels
-                pixels.forEach(pixel => {
-                  const key = `${pixel.imageFileId || pixel.imageUrl || 'no-image'}_${pixel.linkUrl || 'no-link'}`
-
-                  if (!groupMap.has(key)) {
-                    // Get purchase status and orderId for this pixel  
-                    const purchase = pickPurchaseForPixel(pixel)
-
-                    groupMap.set(key, {
-                      imageUrl: pixel.imageUrl,
-                      imageFileId: pixel.imageFileId,
-                      linkUrl: pixel.linkUrl,
-                      pixels: [],
-                      count: 0,
-                      expiresAt: pixel.expiresAt,
-                      status: purchase?.status,
-                      orderId: purchase?.orderId,
-                      refundDetails: purchase?.refundDetails,
-                      packageId: purchase?.packageId,
-                      packageLabel: purchase?.packageLabel,
-                      autoRenew: purchase?.autoRenew,
-                    })
-                  }
-
-                  const group = groupMap.get(key)!
-                  group.pixels.push(pixel)
-                  group.count++
-                })
-
-                // Then, add rejected purchases that don't have pixels
-                purchases.forEach(purchase => {
-                  if (purchase.status === 'rejected') {
-                    const key = `${purchase.imageFileId || purchase.imageUrl || 'no-image'}_${purchase.linkUrl || 'no-link'}_${purchase.orderId}`
-
-                    if (!groupMap.has(key)) {
-                      groupMap.set(key, {
-                        imageUrl: purchase.imageUrl ?? undefined,
-                        imageFileId: purchase.imageFileId ?? undefined,
-                        linkUrl: purchase.linkUrl ?? undefined,
-                        pixels: [],
-                        count: purchase.pixelCount || 0,
-                        expiresAt: purchase.purchasedAt, // Use purchase date
-                        status: 'rejected',
-                        orderId: purchase.orderId,
-                        refundDetails: purchase.refundDetails
-                      })
-                    }
-                  }
-                })
-
-                return Array.from(groupMap.values())
-              })().map((group, i) => (
-                <div key={i} className="bg-gold-glass rounded-xl group hover:border-[#BF953F]/50 transition-all duration-500 overflow-hidden flex flex-col">
-                  {/* Image Header */}
-                  <div className="h-48 w-full relative bg-black/40 border-b border-[#BF953F]/10 group-hover:bg-black/20 transition-colors">
-                    {group.imageFileId || group.imageUrl ? (
-                      <Image
-                        src={group.imageFileId ? `/api/images/${group.imageFileId}` : group.imageUrl!}
-                        alt={`Estate Group ${i + 1}`}
-                        fill
-                        className="object-contain p-6 group-hover:scale-105 transition-transform duration-700"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-[#BF953F]/20">
-                        <ImageIcon className="w-12 h-12 mb-2" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest leading-none">Awaiting Content</span>
-                      </div>
-                    )}
-
-                    {group.status === 'pending' ? (
-                      <div className="absolute top-4 right-4 bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg text-[10px] font-bold border border-yellow-500/30 backdrop-blur-sm flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Confirming payment
-                      </div>
-                    ) : group.status === 'rejected' ? (
-                      <div className="absolute top-4 right-4 bg-red-500/20 text-red-400 px-3 py-1 rounded-lg text-[10px] font-bold border border-red-500/30 backdrop-blur-sm flex items-center gap-1">
-                        <LogOut className="w-3 h-3" /> Rejected
-                      </div>
-                    ) : (
-                      <div className="absolute top-4 right-4 bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-lg text-[10px] font-bold border border-emerald-500/30 backdrop-blur-sm flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3" /> Live
-                      </div>
-                    )}
-
-                    <div className="absolute bottom-4 left-4 bg-black/60 text-[#FCF6BA] px-4 py-1.5 rounded-xl text-xs font-serif font-bold border border-[#BF953F]/30 backdrop-blur-md">
-                      #{i + 1}
-                    </div>
-                  </div>
-
-                  <div className="p-6 flex-1 flex flex-col font-serif">
-                    <div className="mb-6">
-                      <div className="flex justify-between items-start">
-                        <h3 className="text-xl font-bold text-[#FCF6BA] mb-1">Brand listing</h3>
-                        {group.status === 'completed' && (
-                          <button
-                            onClick={() => {
-                              setEditingLink({ pixels: group.pixels, currentLink: group.linkUrl || '' })
-                              setNewLink(group.linkUrl || '')
-                            }}
-                            className="p-2 bg-[#BF953F]/10 text-[#BF953F] hover:bg-[#BF953F]/20 rounded-lg border border-[#BF953F]/20 transition-all group/edit"
-                            title="Update Link"
-                          >
-                            <Edit className="w-3.5 h-3.5 group-hover/edit:scale-110 transition-transform" />
-                          </button>
+            <div className="space-y-4">
+              {listings.map((group, i) => {
+                const status = statusCopy(group)
+                const imageSrc = group.imageFileId ? `/api/images/${group.imageFileId}` : group.imageUrl
+                return (
+                  <article key={group.orderId || `${group.linkUrl}-${i}`} className="ks-plinth overflow-hidden">
+                    <div className="grid md:grid-cols-[200px_minmax(0,1fr)]">
+                      <div className="relative h-44 md:h-auto min-h-[160px] bg-[var(--ks-graphite)] flex items-center justify-center">
+                        {imageSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={imageSrc} alt="Listing logo" className="max-h-36 max-w-[80%] object-contain" />
+                        ) : (
+                          <p className="ks-mono text-[var(--ks-faint)]">No logo</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${group.status === 'pending' ? 'bg-yellow-500' :
-                          group.status === 'rejected' ? 'bg-red-500' :
-                            'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                          }`} />
-                        <span className="text-[10px] text-slate-400 uppercase tracking-widest font-sans font-bold">
-                          {group.status === 'rejected' ? 'Rejected Asset' : 'Historical Asset'} • {group.count} Units
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-6 pt-4 border-t border-[#BF953F]/10">
-                      <div>
-                        <div className="text-[10px] text-slate-400 uppercase tracking-widest">Started:</div>
-                        <div className="text-sm text-white font-serif">{group.pixels.length > 0 ? new Date(group.pixels[0].purchasedAt || Date.now()).toLocaleDateString() : 'N/A'}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-slate-400 uppercase tracking-widest">Expires:</div>
-                        <div className="text-sm text-white font-serif">{formatExpiry(group.expiresAt)}</div>
-                        {group.packageLabel && (
-                          <div className="text-[10px] text-[#BF953F] mt-1">{group.packageLabel}{group.autoRenew ? ' · auto-renew' : ''}</div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-auto space-y-3">
-                      {group.linkUrl && group.status === 'completed' && (
-                        <button
-                          onClick={() => window.open(group.linkUrl, '_blank')}
-                          className="w-full py-3.5 bg-gradient-to-r from-[#BF953F] to-[#FCF6BA] text-black rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(191,149,63,0.3)] shadow-lg"
-                        >
-                          Discover Domain
-                          <ExternalLink className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      {group.status === 'rejected' && !group.refundDetails && (
-                        <button
-                          onClick={() => setRefundingPurchase({ orderId: group.orderId!, pixels: group.pixels })}
-                          className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.5)]"
-                        >
-                          Request Refund
-                          <ArrowLeft className="w-4 h-4 rotate-180" />
-                        </button>
-                      )}
-
-                      {group.status === 'rejected' && group.refundDetails && (
-                        <div className="w-full py-3.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-xl text-xs font-bold text-center">
-                          Refund Request Submitted
+                      <div className="p-5 md:p-6 flex flex-col gap-5">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="ks-mono text-[var(--ks-patina-text)] mb-2">{status.label}</p>
+                            <p className="text-[var(--ks-muted)] text-sm leading-[1.6] max-w-[50ch]">{status.hint}</p>
+                          </div>
+                          {group.linkUrl && group.status === 'completed' && (
+                            <button
+                              onClick={() => window.open(group.linkUrl, '_blank')}
+                              className="ks-mono text-[var(--ks-kinpaku)] hover:text-[var(--ks-champagne)] inline-flex items-center gap-1.5"
+                            >
+                              {websiteLabel(group.linkUrl)}
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
-                      )}
 
-                      {group.status === 'completed' && group.orderId && (
-                        <button
-                          onClick={() => startRenewal(group.orderId!, group.packageId)}
-                          disabled={renewingOrderId === group.orderId}
-                          className="w-full py-3.5 bg-[#BF953F]/10 hover:bg-[#BF953F]/20 text-[#FCF6BA] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-[#BF953F]/20"
-                        >
-                          {renewingOrderId === group.orderId ? 'Opening Polar...' : group.autoRenew ? 'Renew / extend now' : 'Renew membership'}
-                        </button>
-                      )}
+                        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <dt className="ks-mono text-[var(--ks-faint)] mb-1">Pixels</dt>
+                            <dd className="text-[var(--ks-champagne)]">{group.count}</dd>
+                          </div>
+                          <div>
+                            <dt className="ks-mono text-[var(--ks-faint)] mb-1">Plan</dt>
+                            <dd className="text-[var(--ks-champagne)]">
+                              {group.packageLabel || '—'}
+                              {group.autoRenew ? ' · auto-renew' : ''}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="ks-mono text-[var(--ks-faint)] mb-1">Ends</dt>
+                            <dd className="text-[var(--ks-champagne)]">{formatExpiry(group.expiresAt)}</dd>
+                          </div>
+                          <div>
+                            <dt className="ks-mono text-[var(--ks-faint)] mb-1">Website</dt>
+                            <dd className="text-[var(--ks-champagne)] truncate">{websiteLabel(group.linkUrl)}</dd>
+                          </div>
+                        </dl>
 
-                      {group.status === 'completed' && group.autoRenew && (
-                        <button
-                          onClick={openBillingPortal}
-                          className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-white/10"
-                        >
-                          Manage auto-renew
-                        </button>
-                      )}
-
-                      {group.status === 'completed' && (
-                        <button
-                          onClick={() => setReleasingGroup({ pixels: group.pixels, count: group.count })}
-                          className="w-full py-3.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-red-500/20"
-                        >
-                          End listing
-                        </button>
-                      )}
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {group.status === 'completed' && (
+                            <button
+                              onClick={() => {
+                                setEditingLink({ pixels: group.pixels, currentLink: group.linkUrl || '' })
+                                setNewLink(group.linkUrl || '')
+                              }}
+                              className="glass-button !py-2 !px-4 text-sm"
+                            >
+                              Change website
+                            </button>
+                          )}
+                          {group.status === 'completed' && group.orderId && (
+                            <button
+                              onClick={() => startRenewal(group.orderId!, group.packageId)}
+                              disabled={renewingOrderId === group.orderId}
+                              className="glass-button !py-2 !px-4 text-sm"
+                            >
+                              {renewingOrderId === group.orderId ? 'Opening checkout…' : 'Renew'}
+                            </button>
+                          )}
+                          {group.status === 'completed' && group.autoRenew && (
+                            <button onClick={openBillingPortal} className="glass-button !py-2 !px-4 text-sm">
+                              Manage auto-renew
+                            </button>
+                          )}
+                          {group.status === 'completed' && (
+                            <button
+                              onClick={() => setReleasingGroup({ pixels: group.pixels, count: group.count })}
+                              className="glass-button !py-2 !px-4 text-sm !text-red-400 hover:!text-red-300"
+                            >
+                              End listing
+                            </button>
+                          )}
+                          {group.status === 'rejected' && !group.refundDetails && (
+                            <button
+                              onClick={() => setRefundingPurchase({ orderId: group.orderId!, pixels: group.pixels })}
+                              className="glass-button !py-2 !px-4 text-sm"
+                            >
+                              Request refund
+                            </button>
+                          )}
+                          {group.status === 'rejected' && group.refundDetails && (
+                            <p className="ks-mono text-[var(--ks-patina-text)] py-2">Refund requested</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h3 className="text-xl text-[var(--ks-champagne)] mb-2">Payments</h3>
+          <p className="text-sm text-[var(--ks-muted)] mb-6">What you paid for listings on this account.</p>
+
+          {orders.length === 0 ? (
+            <p className="text-sm text-[var(--ks-muted)]">No payments yet.</p>
+          ) : (
+            <div className="border-t border-[var(--ks-rule)]">
+              {orders.map((order) => (
+                <div
+                  key={order.orderId || order._id}
+                  className="grid grid-cols-2 md:grid-cols-4 gap-2 py-4 border-b border-[var(--ks-rule)] text-sm"
+                >
+                  <div>
+                    <p className="ks-mono text-[var(--ks-faint)] mb-1">Date</p>
+                    <p>{new Date(order.purchasedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                  </div>
+                  <div>
+                    <p className="ks-mono text-[var(--ks-faint)] mb-1">Plan</p>
+                    <p>{order.packageLabel || `${order.pixelCount} pixels`}</p>
+                  </div>
+                  <div>
+                    <p className="ks-mono text-[var(--ks-faint)] mb-1">Amount</p>
+                    <p>{rupees(order.amount)}</p>
+                  </div>
+                  <div>
+                    <p className="ks-mono text-[var(--ks-faint)] mb-1">Status</p>
+                    <p>{orderStatusLabel(order.status)}</p>
                   </div>
                 </div>
               ))}
             </div>
           )}
-
         </section>
-
-        {/* Transaction History - ... rest of section */}
-
       </main>
 
-      {/* Refund Modal - ... rest of modal      </section>
-
-      {/* Link Update Modal */}
-      {
-        editingLink && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-slate-900 border border-[#BF953F]/30 rounded-2xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(191,149,63,0.1)] relative"
-            >
-              <h3 className="text-2xl font-serif font-bold text-[#FCF6BA] mb-2 tracking-tight">Update listing link</h3>
-              <p className="text-slate-400 text-sm mb-8">
-                Change the website visitors open when they click your pixels. It updates on the public canvas right away.
-              </p>
-
-              <div className="space-y-6">
-                <div className="relative">
-                  <LinkIcon2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#BF953F]" />
-                  <input
-                    type="url"
-                    value={newLink}
-                    onChange={(e) => setNewLink(e.target.value)}
-                    placeholder="https://your-brand.com"
-                    className="w-full bg-black/50 border border-[#BF953F]/20 rounded-xl py-4 pl-12 pr-4 text-sm text-white focus:border-[#BF953F] focus:ring-1 focus:ring-[#BF953F] outline-none transition-all"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleUpdateLink}
-                    disabled={isUpdating}
-                    className="w-full py-4 bg-gradient-to-r from-[#BF953F] to-[#FCF6BA] text-black rounded-xl font-bold transition-all shadow-lg shadow-[#BF953F]/10 uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                  >
-                    {isUpdating ? (
-                      <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                    ) : (
-                      <ShieldCheck className="w-4 h-4" />
-                    )}
-                    {isUpdating ? 'Safeguarding...' : 'Update Domain'}
-                  </button>
-                  <button
-                    onClick={() => setEditingLink(null)}
-                    className="w-full py-4 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl font-bold transition-all uppercase tracking-widest text-xs"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+      {editingLink && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--ks-lacquer)]/80 p-4">
+          <div className="ks-plinth w-full max-w-md p-6 md:p-8 bg-[var(--ks-raised)]">
+            <h3 className="text-xl text-[var(--ks-champagne)] mb-2">Change website</h3>
+            <p className="text-sm text-[var(--ks-muted)] mb-6">
+              This is the page people open when they click your pixels. It updates on the canvas right away.
+            </p>
+            <label className="ks-label">Website</label>
+            <input
+              type="url"
+              value={newLink}
+              onChange={(e) => setNewLink(e.target.value)}
+              placeholder="https://your-brand.com"
+              className="ks-input mb-6"
+            />
+            <div className="flex flex-col gap-2">
+              <button onClick={handleUpdateLink} disabled={isUpdating} className="btn-luxury disabled:opacity-50">
+                {isUpdating ? 'Saving…' : 'Save link'}
+              </button>
+              <button onClick={() => setEditingLink(null)} className="glass-button">
+                Cancel
+              </button>
+            </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {/* Release Confirmation Modal */}
-      {
-        releasingGroup && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-slate-900 border border-red-500/30 rounded-2xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(239,68,68,0.2)] text-center relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
-
-              <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
-                <LogOut className="w-10 h-10 text-red-500" />
-              </div>
-
-              <h3 className="text-2xl font-serif font-bold text-white mb-3 tracking-tight">End this listing?</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-8">
-                Proceeding will return <span className="text-white font-bold">{releasingGroup.count} pixels</span> to the public domain. This action is irreversible and your lease will be permanently terminated.
-              </p>
-
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => handleRemovePixels(releasingGroup.pixels)}
-                  className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-red-500/20 uppercase tracking-widest text-xs"
-                >
-                  Confirm Release
-                </button>
-                <button
-                  onClick={() => setReleasingGroup(null)}
-                  className="w-full py-4 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl font-bold transition-all uppercase tracking-widest text-xs"
-                >
-                  Retain Ownership
-                </button>
-              </div>
-            </motion.div>
+      {releasingGroup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--ks-lacquer)]/80 p-4">
+          <div className="ks-plinth w-full max-w-md p-6 md:p-8 bg-[var(--ks-raised)]">
+            <h3 className="text-xl text-[var(--ks-champagne)] mb-2">End this listing?</h3>
+            <p className="text-sm text-[var(--ks-muted)] leading-[1.7] mb-8">
+              Your logo comes off the canvas and these {releasingGroup.count} pixels become open again. This cannot be undone.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleRemovePixels(releasingGroup.pixels)}
+                className="w-full py-3 bg-red-600 text-white rounded-[2px] text-sm"
+              >
+                End listing
+              </button>
+              <button onClick={() => setReleasingGroup(null)} className="glass-button">
+                Keep listing
+              </button>
+            </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {/* Refund Request Modal */}
-      {
-        refundingPurchase && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-slate-900 border border-blue-500/30 rounded-2xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(59,130,246,0.2)] relative"
-            >
-              <h3 className="text-2xl font-serif font-bold text-blue-400 mb-2 tracking-tight">Request Refund</h3>
-              <p className="text-slate-400 text-sm mb-6">
-                Please provide your refund details. Our team will process your request within 5-7 business days.
-              </p>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-slate-400 uppercase tracking-wider mb-2 block">Bank Account Number</label>
-                  <input
-                    type="text"
-                    value={refundDetails.accountNumber}
-                    onChange={(e) => setRefundDetails({ ...refundDetails, accountNumber: e.target.value })}
-                    placeholder="Enter account number"
-                    className="w-full bg-black/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-400 uppercase tracking-wider mb-2 block">IFSC Code</label>
-                  <input
-                    type="text"
-                    value={refundDetails.ifsc}
-                    onChange={(e) => setRefundDetails({ ...refundDetails, ifsc: e.target.value })}
-                    placeholder="Enter IFSC code"
-                    className="w-full bg-black/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-700"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-slate-900 px-2 text-slate-500">OR</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-400 uppercase tracking-wider mb-2 block">UPI ID</label>
-                  <input
-                    type="text"
-                    value={refundDetails.upi}
-                    onChange={(e) => setRefundDetails({ ...refundDetails, upi: e.target.value })}
-                    placeholder="username@upi"
-                    className="w-full bg-black/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-400 uppercase tracking-wider mb-2 block">Payment Screenshot (Optional)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        setRefundDetails({ ...refundDetails, screenshot: file })
-                      }
-                    }}
-                    className="w-full bg-black/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-500/20 file:text-blue-400 hover:file:bg-blue-500/30"
-                  />
-                  {refundDetails.screenshot && (
-                    <p className="text-xs text-blue-400 mt-2">Selected: {refundDetails.screenshot.name}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-400 uppercase tracking-wider mb-2 block">Additional Notes (Optional)</label>
-                  <textarea
-                    value={refundDetails.notes}
-                    onChange={(e) => setRefundDetails({ ...refundDetails, notes: e.target.value })}
-                    placeholder="Any additional information..."
-                    rows={3}
-                    className="w-full bg-black/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-3 pt-4">
-                  <button
-                    onClick={handleRefundRequest}
-                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 uppercase tracking-widest text-xs hover:shadow-blue-500/40"
-                  >
-                    Submit Refund Request
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRefundingPurchase(null)
-                      setRefundDetails({ accountNumber: '', ifsc: '', upi: '', notes: '', screenshot: null })
-                    }}
-                    className="w-full py-4 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl font-bold transition-all uppercase tracking-widest text-xs"
-                  >
-                    Cancel
-                  </button>
-                </div>
+      {refundingPurchase && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--ks-lacquer)]/80 p-4 overflow-y-auto">
+          <div className="ks-plinth w-full max-w-md p-6 md:p-8 bg-[var(--ks-raised)] my-8">
+            <h3 className="text-xl text-[var(--ks-champagne)] mb-2">Request a refund</h3>
+            <p className="text-sm text-[var(--ks-muted)] mb-6">
+              Add a bank account or UPI ID. We typically process this in 5–7 business days.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="ks-label">Bank account number</label>
+                <input
+                  type="text"
+                  value={refundDetails.accountNumber}
+                  onChange={(e) => setRefundDetails({ ...refundDetails, accountNumber: e.target.value })}
+                  className="ks-input"
+                  placeholder="Account number"
+                />
               </div>
-            </motion.div>
+              <div>
+                <label className="ks-label">IFSC</label>
+                <input
+                  type="text"
+                  value={refundDetails.ifsc}
+                  onChange={(e) => setRefundDetails({ ...refundDetails, ifsc: e.target.value })}
+                  className="ks-input"
+                  placeholder="IFSC"
+                />
+              </div>
+              <p className="ks-mono text-[var(--ks-faint)] text-center">or</p>
+              <div>
+                <label className="ks-label">UPI ID</label>
+                <input
+                  type="text"
+                  value={refundDetails.upi}
+                  onChange={(e) => setRefundDetails({ ...refundDetails, upi: e.target.value })}
+                  className="ks-input"
+                  placeholder="name@upi"
+                />
+              </div>
+              <div>
+                <label className="ks-label">Payment screenshot (optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) setRefundDetails({ ...refundDetails, screenshot: file })
+                  }}
+                  className="ks-input"
+                />
+              </div>
+              <div>
+                <label className="ks-label">Notes (optional)</label>
+                <textarea
+                  value={refundDetails.notes}
+                  onChange={(e) => setRefundDetails({ ...refundDetails, notes: e.target.value })}
+                  rows={3}
+                  className="ks-input resize-none"
+                />
+              </div>
+              <button onClick={handleRefundRequest} className="btn-luxury w-full">
+                Submit refund request
+              </button>
+              <button
+                onClick={() => {
+                  setRefundingPurchase(null)
+                  setRefundDetails({ accountNumber: '', ifsc: '', upi: '', notes: '', screenshot: null })
+                }}
+                className="glass-button w-full"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+    </DashboardShell>
   )
 }
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-[#BF953F]">Loading Details...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--ks-lacquer)] flex items-center justify-center">
+          <p className="ks-mono text-[var(--ks-kinpaku)]">Loading your listings</p>
+        </div>
+      }
+    >
       <DashboardContent />
     </Suspense>
   )

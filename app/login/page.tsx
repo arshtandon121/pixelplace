@@ -41,7 +41,7 @@ export default function LoginPage() {
       if (res.ok) {
         localStorage.setItem('token', data.token)
         toast.success('Signed in')
-        router.push('/canvas')
+        router.push('/dashboard')
       } else {
         toast.error(data.error || 'Invalid credentials')
       }

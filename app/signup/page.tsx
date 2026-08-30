@@ -70,7 +70,7 @@ export default function SignupPage() {
       if (res.ok) {
         localStorage.setItem('token', data.token)
         toast.success('Account created')
-        router.push('/canvas')
+        router.push('/dashboard')
       } else {
         toast.error(data.error || 'Failed to create account')
       }

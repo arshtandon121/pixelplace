@@ -333,7 +333,7 @@ export default function CanvasPage() {
               className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#BF953F]/10 hover:bg-[#BF953F]/20 text-[#FCF6BA] rounded-lg border border-[#BF953F]/30 transition-all font-medium text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Zap className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span>Activity</span>
+              <span>Your listings</span>
             </Link>
           </div>
         </header>
