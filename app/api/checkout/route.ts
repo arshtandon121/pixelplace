@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken, getUserById } from '@/lib/auth'
 import { checkPixelsAvailable } from '@/lib/pixels'
-import { PIXEL_PRICE_PER_MONTH } from '@/lib/constants'
 import { getDb } from '@/lib/db'
 import { storeImage, base64ToBuffer } from '@/lib/imageStorage'
 import { getAppUrl, getPolar, getPolarProductId, polarCheckoutPrices } from '@/lib/polar'
+import {
+  addMembershipDuration,
+  getMembershipPackage,
+  membershipPriceInr,
+  type MembershipPackageId,
+} from '@/lib/membership'
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,82 +29,108 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
 
-    const { pixels, imageUrl, linkUrl, tenure = 1 } = await request.json()
-
-    if (!pixels || !Array.isArray(pixels) || pixels.length === 0) {
-      return NextResponse.json({ error: 'Invalid pixels data' }, { status: 400 })
-    }
-
-    if (!imageUrl) {
-      return NextResponse.json({ error: 'Image is required before payment' }, { status: 400 })
-    }
-
-    const available = await checkPixelsAvailable(pixels)
-    if (!available) {
-      return NextResponse.json({ error: 'Some selected pixels are already purchased' }, { status: 400 })
-    }
-
-    const unitPrice = PIXEL_PRICE_PER_MONTH * tenure
-    const totalAmount = unitPrice * pixels.length
-
-    let imageFileId: string | undefined
-    let finalImageUrl: string | undefined
-
-    if (imageUrl.startsWith('data:image')) {
-      try {
-        const { buffer } = base64ToBuffer(imageUrl)
-        imageFileId = await storeImage(buffer, `pixel_image_${decoded.userId}_${Date.now()}.png`)
-      } catch (error) {
-        console.error('Image storage error:', error)
-        return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })
-      }
-    } else {
-      finalImageUrl = imageUrl
-    }
+    const body = await request.json()
+    const { imageUrl, linkUrl, renewOrderId, packageId: rawPackageId } = body
+    const pkg = getMembershipPackage(rawPackageId)
+    const packageId = pkg.id as MembershipPackageId
 
     const db = await getDb()
+    let pixels = body.pixels
+    let imageFileId: string | undefined
+    let finalImageUrl: string | undefined
+    let existingPurchase: any = null
+
+    if (renewOrderId) {
+      existingPurchase = await db.collection('purchases').findOne({
+        orderId: renewOrderId,
+        userId: decoded.userId,
+        status: 'completed',
+      })
+      if (!existingPurchase) {
+        return NextResponse.json({ error: 'Membership not found' }, { status: 404 })
+      }
+      pixels = existingPurchase.coordinates
+      imageFileId = existingPurchase.imageFileId
+      finalImageUrl = existingPurchase.imageUrl
+    } else {
+      if (!pixels || !Array.isArray(pixels) || pixels.length === 0) {
+        return NextResponse.json({ error: 'Invalid pixels data' }, { status: 400 })
+      }
+      if (!imageUrl) {
+        return NextResponse.json({ error: 'Image is required before payment' }, { status: 400 })
+      }
+
+      const available = await checkPixelsAvailable(pixels)
+      if (!available) {
+        return NextResponse.json({ error: 'Some selected pixels are already purchased' }, { status: 400 })
+      }
+
+      if (imageUrl.startsWith('data:image')) {
+        try {
+          const { buffer } = base64ToBuffer(imageUrl)
+          imageFileId = await storeImage(buffer, `pixel_image_${decoded.userId}_${Date.now()}.png`)
+        } catch (error) {
+          console.error('Image storage error:', error)
+          return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })
+        }
+      } else {
+        finalImageUrl = imageUrl
+      }
+    }
+
+    const totalAmount = membershipPriceInr(pixels.length, packageId)
+    const unitPrice = totalAmount / pixels.length
     const orderId = `polar_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-    const expiresAt = new Date()
-    expiresAt.setMonth(expiresAt.getMonth() + (tenure || 1))
+    const now = new Date()
+    const baseExpiry = renewOrderId && existingPurchase?.expiresAt && new Date(existingPurchase.expiresAt) > now
+      ? new Date(existingPurchase.expiresAt)
+      : now
+    const expiresAt = addMembershipDuration(baseExpiry, packageId)
 
     await db.collection('purchases').insertOne({
       userId: decoded.userId,
       orderId,
       pixelCount: pixels.length,
       coordinates: pixels,
-      purchasedAt: new Date(),
-      tenure,
+      purchasedAt: now,
+      packageId,
+      packageLabel: pkg.label,
+      autoRenew: pkg.autoRenew,
+      tenure: packageId,
       amount: totalAmount,
       currency: 'INR',
-      imageUrl: finalImageUrl,
+      imageUrl: finalImageUrl ?? existingPurchase?.imageUrl,
       imageFileId,
-      linkUrl: linkUrl || undefined,
+      linkUrl: linkUrl || existingPurchase?.linkUrl,
       provider: 'polar',
       status: 'pending',
+      renewsOrderId: renewOrderId || undefined,
     })
 
-    const bulkOps = pixels.map((p: { x: number; y: number }) => ({
-      updateOne: {
-        filter: { x: p.x, y: p.y },
-        update: {
-          $set: {
-            userId: decoded.userId,
-            imageUrl: finalImageUrl,
-            imageFileId,
-            linkUrl: linkUrl || undefined,
-            purchasedAt: new Date(),
-            expiresAt,
-            price: unitPrice,
-            status: 'pending',
+    if (!renewOrderId) {
+      const bulkOps = pixels.map((p: { x: number; y: number }) => ({
+        updateOne: {
+          filter: { x: p.x, y: p.y },
+          update: {
+            $set: {
+              userId: decoded.userId,
+              imageUrl: finalImageUrl,
+              imageFileId,
+              linkUrl: linkUrl || undefined,
+              purchasedAt: now,
+              expiresAt,
+              price: unitPrice,
+              status: 'pending',
+              packageId,
+            },
           },
+          upsert: true,
         },
-        upsert: true,
-      },
-    }))
+      }))
+      await db.collection('pixels').bulkWrite(bulkOps)
+    }
 
-    await db.collection('pixels').bulkWrite(bulkOps)
-
-    const productId = getPolarProductId()
+    const productId = getPolarProductId(packageId)
     const polar = getPolar()
     const appUrl = getAppUrl()
     const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -118,8 +149,9 @@ export async function POST(request: NextRequest) {
         metadata: {
           orderId,
           userId: decoded.userId,
-          pixelCount: pixels.length,
-          tenure,
+          pixelCount: String(pixels.length),
+          packageId,
+          ...(renewOrderId ? { renewOrderId } : {}),
         },
       })
 
@@ -136,11 +168,13 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       console.error('Polar checkout create failed:', error)
 
-      await db.collection('pixels').bulkWrite(
-        pixels.map((p: { x: number; y: number }) => ({
-          deleteOne: { filter: { x: p.x, y: p.y, userId: decoded.userId, status: 'pending' } },
-        }))
-      )
+      if (!renewOrderId) {
+        await db.collection('pixels').bulkWrite(
+          pixels.map((p: { x: number; y: number }) => ({
+            deleteOne: { filter: { x: p.x, y: p.y, userId: decoded.userId, status: 'pending' } },
+          }))
+        )
+      }
       await db.collection('purchases').updateOne(
         { orderId },
         { $set: { status: 'expired', updatedAt: new Date(), polarError: error?.message || 'checkout_failed' } }

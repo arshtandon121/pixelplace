@@ -25,6 +25,9 @@ export async function createIndexes() {
     // Index on purchases
     await db.collection('purchases').createIndex({ userId: 1 })
     await db.collection('purchases').createIndex({ orderId: 1 })
+    await db.collection('purchases').createIndex({ polarCheckoutId: 1 }, { sparse: true })
+    await db.collection('purchases').createIndex({ polarSubscriptionId: 1 }, { sparse: true })
+    await db.collection('purchases').createIndex({ status: 1, purchasedAt: 1 })
     
     console.log('✅ Database indexes created successfully')
   } catch (error) {

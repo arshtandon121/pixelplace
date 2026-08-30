@@ -7,7 +7,8 @@ import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import PixelGrid from '@/components/PixelGrid'
 import PixelLogo from '@/components/PixelLogo'
-import { PIXEL_PRICE_PER_MONTH, TENURE_OPTIONS, GRID_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT, BLOCKS_PER_ROW, BLOCKS_PER_COL } from '@/lib/constants'
+import { GRID_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT, BLOCKS_PER_ROW, BLOCKS_PER_COL } from '@/lib/constants'
+import { DEFAULT_PACKAGE_ID, MEMBERSHIP_PACKAGES, membershipPriceInr, type MembershipPackageId } from '@/lib/membership'
 import { ShoppingCart, Sparkles, Zap, Upload, X, Link as LinkIcon, CreditCard, ShieldCheck } from 'lucide-react'
 import ImageCropper from '@/components/ImageCropper'
 
@@ -31,7 +32,7 @@ export default function CanvasPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [linkUrl, setLinkUrl] = useState<string>('')
-  const [tenure, setTenure] = useState(1)
+  const [packageId, setPackageId] = useState<MembershipPackageId>(DEFAULT_PACKAGE_ID)
   const [showCropper, setShowCropper] = useState(false)
   const [tempImage, setTempImage] = useState<string | null>(null)
   const [fitImage, setFitImage] = useState(false)
@@ -222,7 +223,7 @@ export default function CanvasPage() {
           pixels: selectedPixels,
           imageUrl: uploadedImage,
           linkUrl: linkUrl || undefined,
-          tenure,
+          packageId,
         }),
       })
 
@@ -248,7 +249,8 @@ export default function CanvasPage() {
     }
   }
 
-  const totalPrice = selectedPixels.length * PIXEL_PRICE_PER_MONTH * tenure
+  const selectedPackage = MEMBERSHIP_PACKAGES.find((p) => p.id === packageId) || MEMBERSHIP_PACKAGES[3]
+  const totalPrice = membershipPriceInr(selectedPixels.length, packageId)
   const totalPriceINR = totalPrice.toFixed(2)
 
   if (loading) {
@@ -359,18 +361,27 @@ export default function CanvasPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] md:text-xs text-[#BF953F] uppercase tracking-widest font-bold">Ownership Tenure</label>
-                    <div className="grid grid-cols-3 gap-1.5 md:gap-2">
-                      {TENURE_OPTIONS.map((opt) => (
+                    <label className="text-[10px] md:text-xs text-[#BF953F] uppercase tracking-widest font-bold">Membership</label>
+                    <p className="text-[9px] md:text-[10px] text-slate-500">1 hour minimum · 1 year maximum. Month and year auto-renew until you cancel.</p>
+                    <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+                      {MEMBERSHIP_PACKAGES.map((opt) => (
                         <button
-                          key={opt.months}
-                          onClick={() => setTenure(opt.months)}
-                          className={`px-1.5 md:px-2 py-1.5 md:py-2 text-[10px] md:text-xs font-bold rounded-lg border transition-all ${tenure === opt.months
+                          key={opt.id}
+                          onClick={() => setPackageId(opt.id)}
+                          className={`px-1.5 md:px-2 py-1.5 md:py-2 text-[10px] md:text-xs font-bold rounded-lg border transition-all text-left ${packageId === opt.id
                             ? 'bg-[#BF953F] text-black border-[#BF953F]'
                             : 'bg-black/40 text-slate-400 border-white/10 hover:border-[#BF953F]/50 hover:text-white'
                             }`}
                         >
-                          {opt.label}
+                          <div className="flex items-center justify-between gap-1">
+                            <span>{opt.label}</span>
+                            {opt.recommended && (
+                              <span className={`text-[7px] uppercase tracking-wide ${packageId === opt.id ? 'text-black/60' : 'text-[#BF953F]'}`}>Best</span>
+                            )}
+                          </div>
+                          {opt.autoRenew && (
+                            <div className={`text-[8px] ${packageId === opt.id ? 'text-black/70' : 'text-emerald-400'}`}>Auto-renew</div>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -381,9 +392,9 @@ export default function CanvasPage() {
                       <span className="text-slate-400 text-xs md:text-sm">Total Investment</span>
                       <div className="text-right">
                         <div className="text-xl md:text-2xl font-bold text-[#FCF6BA] font-serif">
-                          ₹{(selectedPixels.length * PIXEL_PRICE_PER_MONTH * tenure).toLocaleString()}
+                          ₹{membershipPriceInr(selectedPixels.length, packageId).toLocaleString()}
                         </div>
-                        <div className="text-[9px] md:text-[10px] text-[#BF953F]">for {tenure} month{tenure > 1 ? 's' : ''}</div>
+                        <div className="text-[9px] md:text-[10px] text-[#BF953F]">{selectedPackage.label}{selectedPackage.autoRenew ? ' · renews' : ''}</div>
                       </div>
                     </div>
 
@@ -487,7 +498,7 @@ export default function CanvasPage() {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#BF953F] font-bold">02.</span>
-                  <span>Choose your ownership tenure.</span>
+                  <span>Choose a listing from 1 hour to 1 year.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#BF953F] font-bold">03.</span>
@@ -628,8 +639,8 @@ export default function CanvasPage() {
                     <span className="text-white font-mono">{selectedPixels.length}</span>
                   </div>
                   <div className="flex justify-between text-slate-400">
-                    <span>Tenure</span>
-                    <span className="text-white">{tenure} month{tenure > 1 ? 's' : ''}</span>
+                  <span>Membership</span>
+                  <span className="text-white">{selectedPackage.label}{selectedPackage.autoRenew ? ' · auto-renew' : ''}</span>
                   </div>
                 </div>
 

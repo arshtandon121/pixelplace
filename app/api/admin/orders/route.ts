@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { PIXEL_PRICE_PER_MONTH } from '@/lib/constants'
+import { addMembershipDuration, type MembershipPackageId } from '@/lib/membership'
 
 // Simple Auth Middleware
 const checkAdminAuth = (request: NextRequest) => {
@@ -67,12 +68,10 @@ export async function PATCH(request: NextRequest) {
 
         if (status === 'completed' && purchase.status !== 'completed') {
             // Approve: Assign Pixels
-            const { coordinates: pixels, userId, imageUrl, imageFileId, linkUrl, tenure } = purchase
+            const { coordinates: pixels, userId, imageUrl, imageFileId, linkUrl, packageId } = purchase
 
             if (pixels && Array.isArray(pixels) && pixels.length > 0) {
-                // Calculate expiration
-                const expiresAt = new Date()
-                expiresAt.setMonth(expiresAt.getMonth() + (tenure || 1))
+                const expiresAt = addMembershipDuration(new Date(), (packageId || 'month') as MembershipPackageId)
 
                 const bulkOps = pixels.map((p: any) => ({
                     updateOne: {
@@ -85,8 +84,9 @@ export async function PATCH(request: NextRequest) {
                                 linkUrl,
                                 purchasedAt: new Date(),
                                 expiresAt,
-                                price: PIXEL_PRICE_PER_MONTH * (tenure || 1),
-                                status: 'active'
+                                price: pixels.length ? (purchase.amount || PIXEL_PRICE_PER_MONTH) / pixels.length : PIXEL_PRICE_PER_MONTH,
+                                status: 'active',
+                                packageId,
                             }
                         },
                         upsert: true

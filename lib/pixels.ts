@@ -50,6 +50,8 @@ export async function getPixelsByUser(userId: string): Promise<Pixel[]> {
       purchasedAt: 1,
       expiresAt: 1,
       price: 1,
+      status: 1,
+      packageId: 1,
       // DO NOT fetch imageUrl - it's too large and causes slow queries
     })
     .toArray()
@@ -58,30 +60,12 @@ export async function getPixelsByUser(userId: string): Promise<Pixel[]> {
 }
 
 export async function getAllPixels(): Promise<Pixel[]> {
+  const { expireStalePendingPurchases } = await import('./orders')
+  await expireStalePendingPurchases()
+
   const db = await getDb()
   const now = new Date()
 
-  // Debug: Check total pixels in database
-  const totalCount = await db.collection<Pixel>('pixels').countDocuments({})
-  console.log('🔍 Total pixels in database:', totalCount)
-
-  // Debug: Check pixels with images
-  const withImagesCount = await db.collection<Pixel>('pixels').countDocuments({
-    $or: [
-      { imageUrl: { $exists: true, $ne: null as any, $nin: [''] } },
-      { imageFileId: { $exists: true, $ne: null as any, $nin: [''] } }
-    ]
-  })
-  console.log('🔍 Pixels with images:', withImagesCount)
-
-  // Debug: Check non-pending pixels
-  const notPendingCount = await db.collection<Pixel>('pixels').countDocuments({
-    status: { $ne: 'pending' }
-  })
-  console.log('🔍 Non-pending pixels:', notPendingCount)
-
-  // Fetch pixels with images - but use aggregation to limit imageUrl size
-  // This prevents huge base64 strings from slowing down the query
   const pixels = await db.collection<Pixel>('pixels')
     .aggregate([
       {
@@ -126,11 +110,6 @@ export async function getAllPixels(): Promise<Pixel[]> {
       }
     ])
     .toArray()
-
-  console.log('📊 getAllPixels: Found', pixels.length, 'pixels')
-  if (pixels.length > 0) {
-    console.log('📊 Sample pixel:', pixels[0])
-  }
 
   return pixels as Pixel[]
 }

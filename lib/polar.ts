@@ -24,17 +24,28 @@ export function getPolar(): Polar {
   })
 }
 
-export function getPolarProductId(): string {
+export function getPolarProductId(packageId?: string): string {
   const server = getPolarServer()
-  const productId =
-    server === 'sandbox'
+  const isSandbox = server === 'sandbox'
+  const monthly =
+    isSandbox
+      ? process.env.POLAR_SANDBOX_MONTHLY_PRODUCT_ID || process.env.POLAR_MONTHLY_PRODUCT_ID
+      : process.env.POLAR_MONTHLY_PRODUCT_ID
+  const yearly =
+    isSandbox
+      ? process.env.POLAR_SANDBOX_YEARLY_PRODUCT_ID || process.env.POLAR_YEARLY_PRODUCT_ID
+      : process.env.POLAR_YEARLY_PRODUCT_ID
+  const oneTime =
+    isSandbox
       ? process.env.POLAR_SANDBOX_PRODUCT_ID || process.env.POLAR_PRODUCT_ID
       : process.env.POLAR_PRODUCT_ID
 
-  if (!productId) {
+  if (packageId === 'month' && monthly) return monthly
+  if (packageId === 'year' && yearly) return yearly
+  if (!oneTime) {
     throw new Error('Polar product ID is not configured')
   }
-  return productId
+  return oneTime
 }
 
 export function getPolarWebhookSecret(): string {

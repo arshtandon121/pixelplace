@@ -351,7 +351,7 @@ export default function AdminPage() {
                                                 </td>
                                                 <td className="p-4">
                                                     <div className="text-sm">{order.pixelCount} Pixels</div>
-                                                    <div className="text-xs text-slate-500">{order.tenure} Month(s)</div>
+                                                    <div className="text-xs text-slate-500">{order.packageLabel || order.tenure || 'Membership'}</div>
                                                     <div className="text-xs font-bold text-emerald-400">₹{order.amount}</div>
                                                 </td>
                                                 <td className="p-4">

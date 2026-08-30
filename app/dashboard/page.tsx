@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import { LogOut, CheckCircle, CreditCard, Image as ImageIcon, Box, Layers, Calendar, ChevronRight, ShieldCheck, ExternalLink, Edit, Link as LinkIcon2, Clock, ArrowLeft } from 'lucide-react'
 import Image from 'next/image'
 import PixelLogo from '@/components/PixelLogo'
-import { PIXEL_PRICE_PER_MONTH } from '@/lib/constants'
+import { DEFAULT_PACKAGE_ID, formatExpiry, type MembershipPackageId } from '@/lib/membership'
 
 interface Pixel {
   _id?: string
@@ -41,6 +41,9 @@ interface Purchase {
   refundDetails?: string
   refundRequestedAt?: Date
   amount?: number
+  packageId?: MembershipPackageId
+  packageLabel?: string
+  autoRenew?: boolean
 }
 
 function DashboardContent() {
@@ -56,6 +59,55 @@ function DashboardContent() {
   const [editingLink, setEditingLink] = useState<{ pixels: Pixel[], currentLink: string } | null>(null)
   const [newLink, setNewLink] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
+  const [renewingOrderId, setRenewingOrderId] = useState<string | null>(null)
+
+  const startRenewal = async (orderId: string, packageId?: MembershipPackageId) => {
+    setRenewingOrderId(orderId)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          renewOrderId: orderId,
+          packageId: packageId || DEFAULT_PACKAGE_ID,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Unable to start renewal')
+        return
+      }
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+      }
+    } catch (error) {
+      toast.error('Unable to start renewal')
+    } finally {
+      setRenewingOrderId(null)
+    }
+  }
+
+  const openBillingPortal = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        toast.error(data.error || 'Billing portal unavailable')
+        return
+      }
+      window.location.href = data.url
+    } catch (error) {
+      toast.error('Unable to open billing portal')
+    }
+  }
 
   useEffect(() => {
     const checkoutId = searchParams?.get('checkout_id')
@@ -114,11 +166,17 @@ function DashboardContent() {
   }, [searchParams])
 
   // Map purchase status to pixels based on coordinates
-  const getPixelPurchaseStatus = (pixel: Pixel): 'pending' | 'completed' | 'rejected' | undefined => {
-    const purchase = purchases.find(p =>
+  const pickPurchaseForPixel = (pixel: Pixel): Purchase | undefined => {
+    const matching = purchases.filter(p =>
       p.coordinates?.some((coord: any) => coord.x === pixel.x && coord.y === pixel.y)
     )
-    return purchase?.status
+    if (matching.length === 0) return undefined
+    const rank = (status?: string) => (status === 'completed' ? 3 : status === 'pending' ? 1 : 0)
+    return [...matching].sort((a, b) => {
+      const byStatus = rank(b.status) - rank(a.status)
+      if (byStatus !== 0) return byStatus
+      return new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime()
+    })[0]
   }
 
   const checkAuth = async () => {
@@ -427,6 +485,9 @@ function DashboardContent() {
                   status?: 'pending' | 'completed' | 'rejected'
                   orderId?: string
                   refundDetails?: any
+                  packageId?: MembershipPackageId
+                  packageLabel?: string
+                  autoRenew?: boolean
                 }> = []
 
                 const groupMap = new Map<string, typeof groups[0]>()
@@ -437,9 +498,7 @@ function DashboardContent() {
 
                   if (!groupMap.has(key)) {
                     // Get purchase status and orderId for this pixel  
-                    const purchase = purchases.find(p =>
-                      p.coordinates?.some((coord: any) => coord.x === pixel.x && coord.y === pixel.y)
-                    )
+                    const purchase = pickPurchaseForPixel(pixel)
 
                     groupMap.set(key, {
                       imageUrl: pixel.imageUrl,
@@ -450,7 +509,10 @@ function DashboardContent() {
                       expiresAt: pixel.expiresAt,
                       status: purchase?.status,
                       orderId: purchase?.orderId,
-                      refundDetails: purchase?.refundDetails
+                      refundDetails: purchase?.refundDetails,
+                      packageId: purchase?.packageId,
+                      packageLabel: purchase?.packageLabel,
+                      autoRenew: purchase?.autoRenew,
                     })
                   }
 
@@ -554,7 +616,10 @@ function DashboardContent() {
                       </div>
                       <div>
                         <div className="text-[10px] text-slate-400 uppercase tracking-widest">Expires:</div>
-                        <div className="text-sm text-white font-serif">{group.expiresAt ? new Date(group.expiresAt).toLocaleDateString() : group.status === 'rejected' ? 'Rejected' : 'Never'}</div>
+                        <div className="text-sm text-white font-serif">{formatExpiry(group.expiresAt)}</div>
+                        {group.packageLabel && (
+                          <div className="text-[10px] text-[#BF953F] mt-1">{group.packageLabel}{group.autoRenew ? ' · auto-renew' : ''}</div>
+                        )}
                       </div>
                     </div>
 
@@ -583,6 +648,25 @@ function DashboardContent() {
                         <div className="w-full py-3.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-xl text-xs font-bold text-center">
                           Refund Request Submitted
                         </div>
+                      )}
+
+                      {group.status === 'completed' && group.orderId && (
+                        <button
+                          onClick={() => startRenewal(group.orderId!, group.packageId)}
+                          disabled={renewingOrderId === group.orderId}
+                          className="w-full py-3.5 bg-[#BF953F]/10 hover:bg-[#BF953F]/20 text-[#FCF6BA] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-[#BF953F]/20"
+                        >
+                          {renewingOrderId === group.orderId ? 'Opening Polar...' : group.autoRenew ? 'Renew / extend now' : 'Renew membership'}
+                        </button>
+                      )}
+
+                      {group.status === 'completed' && group.autoRenew && (
+                        <button
+                          onClick={openBillingPortal}
+                          className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-white/10"
+                        >
+                          Manage auto-renew
+                        </button>
                       )}
 
                       {group.status === 'completed' && (

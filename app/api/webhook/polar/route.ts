@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateEvent, WebhookVerificationError } from '@polar-sh/sdk/webhooks'
-import { expireUnpaidOrder, fulfillPaidOrder } from '@/lib/orders'
+import { expireUnpaidOrder, fulfillPaidOrder, revokeMembership } from '@/lib/orders'
 import { getPolarWebhookSecret } from '@/lib/polar'
 
 export const dynamic = 'force-dynamic'
@@ -33,8 +33,9 @@ export async function POST(request: NextRequest) {
         const result = await fulfillPaidOrder({
           polarOrderId: order.id,
           polarCheckoutId: order.checkoutId,
+          polarSubscriptionId: order.subscriptionId,
+          billingReason: order.billingReason,
           metadata: order.metadata,
-          paidAmountCents: order.totalAmount,
         })
         if (!result.ok && result.reason === 'not_found') {
           console.error('Paid Polar order had no matching purchase', order.id, order.checkoutId, order.metadata)
@@ -63,6 +64,10 @@ export async function POST(request: NextRequest) {
         })
         break
       }
+      case 'subscription.revoked': {
+        await revokeMembership(event.data.id)
+        break
+      }
       default:
         break
     }
@@ -73,6 +78,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
     }
     console.error('Polar webhook error:', error)
-    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
+    return new NextResponse(null, { status: 202 })
   }
 }
