@@ -137,6 +137,13 @@ export default function SignupPage() {
           {loading ? 'Creating…' : 'Create account'}
         </button>
       </form>
+      <p className="mt-4 text-xs text-[var(--ks-muted)] leading-[1.6]">
+        By creating an account you agree to the{' '}
+        <Link href="/terms" className="text-[var(--ks-kinpaku)] hover:text-[var(--ks-champagne)]">
+          listing rules
+        </Link>
+        .
+      </p>
       <p className="mt-8 text-sm text-[var(--ks-muted)]">
         Already have an account?{' '}
         <Link href="/login" className="text-[var(--ks-kinpaku)] hover:text-[var(--ks-champagne)]">

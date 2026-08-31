@@ -77,6 +77,7 @@ export default function Home() {
                 <li><a href="/dashboard" className="hover:text-[var(--ks-kinpaku)] transition-colors">Dashboard</a></li>
                 <li><a href="/login" className="hover:text-[var(--ks-kinpaku)] transition-colors">Login</a></li>
                 <li><a href="/signup" className="hover:text-[var(--ks-kinpaku)] transition-colors">Sign up</a></li>
+                <li><a href="/terms" className="hover:text-[var(--ks-kinpaku)] transition-colors">Listing rules</a></li>
               </ul>
             </div>
             <div>
@@ -98,7 +99,9 @@ export default function Home() {
           </div>
           <div className="pt-6 border-t border-[var(--ks-rule)] flex flex-col md:flex-row justify-between gap-3">
             <p className="ks-mono text-[var(--ks-faint)]">© {new Date().getFullYear()} PixelPlace</p>
-            <p className="ks-mono text-[var(--ks-faint)]">Brand display on a public canvas</p>
+            <a href="/terms" className="ks-mono text-[var(--ks-faint)] hover:text-[var(--ks-kinpaku)]">
+              Listing rules
+            </a>
           </div>
         </div>
       </footer>

@@ -504,7 +504,7 @@ export default function CanvasPage() {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#BF953F] font-bold">04.</span>
-                  <span>Pay securely — your listing goes live automatically.</span>
+                  <span>Pay securely. Listings must follow the <a href="/terms" className="text-[#BF953F] hover:text-[#FCF6BA]">listing rules</a>.</span>
                 </li>
               </ul>
             </div>
@@ -627,7 +627,10 @@ export default function CanvasPage() {
 
               <div className="text-center mb-5 md:mb-6">
                 <h3 className="text-xl md:text-2xl font-serif font-bold text-[#FCF6BA] mb-2">Checkout</h3>
-                <p className="text-slate-400 text-xs md:text-sm">Pay securely. Your listing goes live as soon as payment succeeds.</p>
+                <p className="text-slate-400 text-xs md:text-sm">
+                  Pay securely. Your listing goes live as soon as payment succeeds. By paying you agree to the{' '}
+                  <a href="/terms" className="text-[#BF953F] hover:text-[#FCF6BA]">listing rules</a>.
+                </p>
               </div>
 
               <div className="space-y-6">
