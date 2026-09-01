@@ -27,7 +27,10 @@ export const metadata: Metadata = {
   title: 'PixelPlace — Put your brand on the live pixel canvas',
   description: 'Rent space on a public 50×50 pixel canvas. Upload your logo and link. Listings go live after payment, from 1 hour to 1 year.',
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
     apple: [{ url: '/apple-icon' }],
   },
   openGraph: {

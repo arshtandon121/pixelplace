@@ -348,15 +348,20 @@ export default function PixelGrid({
               }}
               onMouseEnter={(e) => {
                 onPixelHover(x, y)
-
                 if (!showTooltip) return
+
+                const cell = e.currentTarget
+                if (!cell) return
+                const rect = cell.getBoundingClientRect()
+                const containerRect = cell.parentElement?.parentElement?.getBoundingClientRect()
+                const tooltipX = rect.left - (containerRect?.left || 0) + 6
+                const tooltipY = rect.top - (containerRect?.top || 0) - 10
+
                 setTooltipData((prev) => {
                   if (prev.visible && prev.pixel?.x === x && prev.pixel?.y === y) return prev
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  const containerRect = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect()
                   return {
-                    x: rect.left - (containerRect?.left || 0) + 6,
-                    y: rect.top - (containerRect?.top || 0) - 10,
+                    x: tooltipX,
+                    y: tooltipY,
                     pixel: pixel || ({ x, y } as Pixel),
                     visible: true,
                   }
