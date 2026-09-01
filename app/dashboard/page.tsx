@@ -251,7 +251,9 @@ function DashboardContent() {
   }
 
   useEffect(() => {
-    const checkoutId = searchParams?.get('checkout_id')
+    const checkoutId = searchParams?.get('checkout_id') || searchParams?.get('session_id')
+    const paymentId = searchParams?.get('payment_id')
+    const paymentStatus = searchParams?.get('status')
 
     const fetchData = async () => {
       try {
@@ -261,7 +263,7 @@ function DashboardContent() {
           return
         }
 
-        if (checkoutId) {
+        if (checkoutId || paymentId) {
           try {
             const confirmRes = await fetch('/api/checkout/confirm', {
               method: 'POST',
@@ -269,7 +271,11 @@ function DashboardContent() {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`,
               },
-              body: JSON.stringify({ checkoutId }),
+              body: JSON.stringify({
+                sessionId: checkoutId,
+                checkoutId,
+                paymentId,
+              }),
             })
             const confirmData = await confirmRes.json()
             if (confirmRes.ok && confirmData.status === 'completed') {
@@ -280,7 +286,7 @@ function DashboardContent() {
           } catch (error) {
             console.error('Checkout confirm error:', error)
           }
-        } else if (searchParams?.get('success') === 'true') {
+        } else if (paymentStatus === 'succeeded' || searchParams?.get('success') === 'true') {
           toast.success('Payment completed. Your listing is live.')
         }
 

@@ -3,7 +3,7 @@ import { verifyToken, getUserById } from '@/lib/auth'
 import { checkPixelsAvailable } from '@/lib/pixels'
 import { getDb } from '@/lib/db'
 import { storeImage, base64ToBuffer } from '@/lib/imageStorage'
-import { getAppUrl, getPolar, getPolarProductId, polarCheckoutPrices } from '@/lib/polar'
+import { getAppUrl, getDodo, getDodoProductId, toDodoAmount } from '@/lib/dodo'
 import {
   addMembershipDuration,
   getMembershipPackage,
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = membershipPriceInr(pixels.length, packageId)
     const unitPrice = totalAmount / pixels.length
-    const orderId = `polar_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+    const orderId = `dodo_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     const now = new Date()
     const baseExpiry = renewOrderId && existingPurchase?.expiresAt && new Date(existingPurchase.expiresAt) > now
       ? new Date(existingPurchase.expiresAt)
@@ -95,14 +95,14 @@ export async function POST(request: NextRequest) {
       purchasedAt: now,
       packageId,
       packageLabel: pkg.label,
-      autoRenew: pkg.autoRenew,
+      autoRenew: false,
       tenure: packageId,
       amount: totalAmount,
       currency: 'INR',
       imageUrl: finalImageUrl ?? existingPurchase?.imageUrl,
       imageFileId,
       linkUrl: linkUrl || existingPurchase?.linkUrl,
-      provider: 'polar',
+      provider: 'dodo',
       status: 'pending',
       renewsOrderId: renewOrderId || undefined,
     })
@@ -130,43 +130,53 @@ export async function POST(request: NextRequest) {
       await db.collection('pixels').bulkWrite(bulkOps)
     }
 
-    const productId = getPolarProductId(packageId)
-    const polar = getPolar()
     const appUrl = getAppUrl()
-    const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    const customerIp = forwardedFor || request.headers.get('x-real-ip') || undefined
+    const dodo = getDodo()
 
     try {
-      const checkout = await polar.checkouts.create({
-        products: [productId],
-        prices: polarCheckoutPrices(productId, totalAmount),
-        successUrl: `${appUrl}/dashboard?checkout_id={CHECKOUT_ID}`,
-        returnUrl: `${appUrl}/canvas`,
-        customerEmail: user.email,
-        customerName: user.name,
-        externalCustomerId: decoded.userId,
-        customerIpAddress: customerIp,
+      const session = await dodo.checkoutSessions.create({
+        product_cart: [
+          {
+            product_id: getDodoProductId(),
+            quantity: 1,
+            amount: toDodoAmount(totalAmount),
+          },
+        ],
+        customer: {
+          email: user.email,
+          name: user.name,
+        },
+        billing_currency: 'INR',
+        return_url: `${appUrl}/dashboard`,
+        cancel_url: `${appUrl}/canvas`,
+        customization: { theme: 'dark' },
+        feature_flags: { redirect_immediately: true },
         metadata: {
-          orderId,
-          userId: decoded.userId,
-          pixelCount: String(pixels.length),
-          packageId,
-          ...(renewOrderId ? { renewOrderId } : {}),
+          order_id: orderId,
+          user_id: decoded.userId,
+          pixel_count: String(pixels.length),
+          package_id: packageId,
+          ...(renewOrderId ? { renew_order_id: String(renewOrderId) } : {}),
         },
       })
 
       await db.collection('purchases').updateOne(
         { orderId },
-        { $set: { polarCheckoutId: checkout.id, polarCheckoutUrl: checkout.url } }
+        { $set: { dodoSessionId: session.session_id, dodoCheckoutUrl: session.checkout_url } }
       )
 
-      const checkoutUrl = checkout.url.includes('?')
-        ? `${checkout.url}&theme=dark`
-        : `${checkout.url}?theme=dark`
+      if (!session.checkout_url) {
+        throw new Error('Dodo checkout URL missing')
+      }
 
-      return NextResponse.json({ success: true, orderId, checkoutUrl, checkoutId: checkout.id })
+      return NextResponse.json({
+        success: true,
+        orderId,
+        checkoutUrl: session.checkout_url,
+        checkoutId: session.session_id,
+      })
     } catch (error: any) {
-      console.error('Polar checkout create failed:', error)
+      console.error('Dodo checkout create failed:', error)
 
       if (!renewOrderId) {
         await db.collection('pixels').bulkWrite(
@@ -177,11 +187,11 @@ export async function POST(request: NextRequest) {
       }
       await db.collection('purchases').updateOne(
         { orderId },
-        { $set: { status: 'expired', updatedAt: new Date(), polarError: error?.message || 'checkout_failed' } }
+        { $set: { status: 'expired', updatedAt: new Date(), dodoError: error?.message || 'checkout_failed' } }
       )
 
       return NextResponse.json(
-        { error: 'Unable to start Polar checkout. Please try again.' },
+        { error: 'Unable to start checkout. Please try again.' },
         { status: 502 }
       )
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
-import { getAppUrl, getPolar } from '@/lib/polar'
+import { getDb } from '@/lib/db'
+import { getAppUrl, getDodo } from '@/lib/dodo'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,17 +13,28 @@ export async function POST(request: NextRequest) {
     const decoded = verifyToken(token)
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-    const polar = getPolar()
-    const session = await polar.customerSessions.create({
-      externalCustomerId: decoded.userId,
-      returnUrl: `${getAppUrl()}/dashboard`,
+    const db = await getDb()
+    const purchase = await db.collection('purchases').findOne(
+      { userId: decoded.userId, dodoCustomerId: { $exists: true, $ne: null } },
+      { sort: { purchasedAt: -1 } }
+    )
+
+    if (!purchase?.dodoCustomerId) {
+      return NextResponse.json(
+        { error: 'No Dodo customer on this account yet. Complete a listing payment first.' },
+        { status: 400 }
+      )
+    }
+
+    const session = await getDodo().customers.customerPortal.create(purchase.dodoCustomerId, {
+      return_url: `${getAppUrl()}/dashboard`,
     })
 
-    return NextResponse.json({ url: session.customerPortalUrl })
+    return NextResponse.json({ url: session.link })
   } catch (error: any) {
     console.error('Customer portal error:', error)
     return NextResponse.json(
-      { error: 'Unable to open billing portal. Subscribe first, then try again.' },
+      { error: 'Unable to open billing portal.' },
       { status: 400 }
     )
   }

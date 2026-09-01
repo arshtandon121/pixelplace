@@ -204,7 +204,7 @@ export default function CanvasPage() {
     e.target.value = ''
   }
 
-  const startPolarCheckout = async () => {
+  const startCheckout = async () => {
     if (!uploadedImage) {
       toast.error('Please upload your logo image')
       return
@@ -657,18 +657,18 @@ export default function CanvasPage() {
                   <div>
                     <h4 className="text-sm font-bold text-emerald-300">Automatic approval</h4>
                     <p className="text-xs text-emerald-400/70 mt-1">
-                      After Polar confirms payment, your pixels are approved instantly. No admin wait.
+                      After payment succeeds, your listing goes live. No admin wait.
                     </p>
                   </div>
                 </div>
 
                 <button
                   disabled={checkoutLoading}
-                  onClick={startPolarCheckout}
+                  onClick={startCheckout}
                   className="w-full btn-luxury flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CreditCard className="w-4 h-4" />
-                  {checkoutLoading ? 'Redirecting to Polar...' : 'Pay securely'}
+                  {checkoutLoading ? 'Redirecting to checkout…' : 'Pay securely'}
                 </button>
               </div>
             </div>

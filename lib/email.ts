@@ -1,5 +1,5 @@
 import { Resend } from 'resend'
-import { getAppUrl } from '@/lib/polar'
+import { getAppUrl } from '@/lib/dodo'
 
 function getResend(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY
@@ -13,6 +13,7 @@ function fromAddress(): string {
 
 export type PaymentEmailDetails = {
   orderId: string
+  providerRef?: string
   polarOrderId?: string
   customerName?: string
   customerEmail?: string
@@ -49,7 +50,7 @@ export async function sendPaymentReceivedEmail(details: PaymentEmailDetails): Pr
       <p style="color:#d4d4d4;">A payment was received and the listing went live automatically.</p>
       <table style="width:100%; border-collapse:collapse; margin-top:16px;">
         <tr><td style="padding:8px 0; color:#a3a3a3;">Order</td><td>${details.orderId}</td></tr>
-        ${details.polarOrderId ? `<tr><td style="padding:8px 0; color:#a3a3a3;">Polar order</td><td>${details.polarOrderId}</td></tr>` : ''}
+        ${details.providerRef || details.polarOrderId ? `<tr><td style="padding:8px 0; color:#a3a3a3;">Payment</td><td>${details.providerRef || details.polarOrderId}</td></tr>` : ''}
         <tr><td style="padding:8px 0; color:#a3a3a3;">Customer</td><td>${details.customerName || 'Unknown'} (${details.customerEmail || 'n/a'})</td></tr>
         <tr><td style="padding:8px 0; color:#a3a3a3;">Pixels</td><td>${details.pixelCount}</td></tr>
         <tr><td style="padding:8px 0; color:#a3a3a3;">Plan</td><td>${details.packageLabel || 'Membership'}</td></tr>

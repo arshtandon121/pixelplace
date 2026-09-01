@@ -90,7 +90,7 @@ export default function TermsPage() {
         <section className="mb-12">
           <h2 className="text-lg text-[var(--ks-champagne)] mb-3">Payments and refunds</h2>
           <p className="text-[var(--ks-muted)] text-[15px] leading-[1.7]">
-            Checkout is processed by our payment provider. Prices are shown in Indian rupees before you pay. Auto-renew (month and year) can be managed from the billing portal linked in your dashboard.
+            Checkout is processed by Dodo Payments. Prices are shown in Indian rupees before you pay. Listings last for the term you buy; you can renew from the dashboard.
           </p>
           <p className="text-[var(--ks-muted)] text-[15px] leading-[1.7] mt-4">
             Refunds are for rejected or removed listings that break these rules, or as we agree in writing. Ending a listing yourself before the term expires does not create a right to a refund for unused time.

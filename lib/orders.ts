@@ -20,17 +20,23 @@ export async function findPurchase(params: {
   polarCheckoutId?: string | null
   polarOrderId?: string | null
   polarSubscriptionId?: string | null
+  dodoSessionId?: string | null
+  dodoPaymentId?: string | null
+  dodoSubscriptionId?: string | null
   metadata?: Record<string, unknown>
 }) {
   const db = await getDb()
   const clauses: Record<string, string>[] = []
 
-  const metaOrderId = metadataValue(params.metadata, 'orderId')
+  const metaOrderId = metadataValue(params.metadata, 'orderId') || metadataValue(params.metadata, 'order_id')
   if (params.orderId) clauses.push({ orderId: params.orderId })
   if (metaOrderId) clauses.push({ orderId: metaOrderId })
   if (params.polarCheckoutId) clauses.push({ polarCheckoutId: params.polarCheckoutId })
   if (params.polarOrderId) clauses.push({ polarOrderId: params.polarOrderId })
   if (params.polarSubscriptionId) clauses.push({ polarSubscriptionId: params.polarSubscriptionId })
+  if (params.dodoSessionId) clauses.push({ dodoSessionId: params.dodoSessionId })
+  if (params.dodoPaymentId) clauses.push({ dodoPaymentId: params.dodoPaymentId })
+  if (params.dodoSubscriptionId) clauses.push({ dodoSubscriptionId: params.dodoSubscriptionId })
 
   if (clauses.length === 0) return null
 
@@ -79,7 +85,7 @@ async function activatePixels(purchase: any, expiresAt: Date) {
   )
 }
 
-export async function extendMembership(purchase: any, polarSubscriptionId?: string | null) {
+export async function extendMembership(purchase: any, subscriptionId?: string | null) {
   const db = await getDb()
   const packageId = (purchase.packageId || 'month') as MembershipPackageId
   const now = new Date()
@@ -95,7 +101,8 @@ export async function extendMembership(purchase: any, polarSubscriptionId?: stri
         status: 'completed',
         expiresAt,
         lastRenewedAt: now,
-        polarSubscriptionId: polarSubscriptionId || purchase.polarSubscriptionId,
+        polarSubscriptionId: subscriptionId || purchase.polarSubscriptionId,
+        dodoSubscriptionId: subscriptionId || purchase.dodoSubscriptionId,
         updatedAt: now,
       },
     }
@@ -104,10 +111,11 @@ export async function extendMembership(purchase: any, polarSubscriptionId?: stri
   try {
     const user = await getUserById(purchase.userId)
     const pkg = getMembershipPackage(packageId)
+    const providerRef = purchase.dodoPaymentId || purchase.polarOrderId
     void Promise.all([
       sendPaymentReceivedEmail({
         orderId: purchase.orderId,
-        polarOrderId: purchase.polarOrderId,
+        providerRef,
         customerName: user?.name,
         customerEmail: user?.email,
         pixelCount: purchase.pixelCount || 0,
@@ -117,7 +125,7 @@ export async function extendMembership(purchase: any, polarSubscriptionId?: stri
       }),
       sendCustomerReceiptEmail({
         orderId: purchase.orderId,
-        polarOrderId: purchase.polarOrderId,
+        providerRef,
         customerName: user?.name,
         customerEmail: user?.email,
         pixelCount: purchase.pixelCount || 0,
@@ -138,6 +146,10 @@ export async function fulfillPaidOrder(params: {
   polarCheckoutId?: string | null
   polarOrderId?: string | null
   polarSubscriptionId?: string | null
+  dodoSessionId?: string | null
+  dodoPaymentId?: string | null
+  dodoSubscriptionId?: string | null
+  dodoCustomerId?: string | null
   billingReason?: string | null
   metadata?: Record<string, unknown>
 }): Promise<{ ok: boolean; already?: boolean; reason?: string; extended?: boolean }> {
@@ -148,14 +160,14 @@ export async function fulfillPaidOrder(params: {
 
   const isCycle = params.billingReason === 'subscription_cycle'
   if (purchase.status === 'completed' && isCycle) {
-    return extendMembership(purchase, params.polarSubscriptionId)
+    return extendMembership(purchase, params.dodoSubscriptionId || params.polarSubscriptionId)
   }
 
   if (purchase.status === 'completed') {
     return { ok: true, already: true }
   }
 
-  const packageId = (purchase.packageId || metadataValue(params.metadata, 'packageId') || 'month') as MembershipPackageId
+  const packageId = (purchase.packageId || metadataValue(params.metadata, 'packageId') || metadataValue(params.metadata, 'package_id') || 'month') as MembershipPackageId
   const pkg = getMembershipPackage(packageId)
   const now = new Date()
   const db = await getDb()
@@ -185,6 +197,8 @@ export async function fulfillPaidOrder(params: {
           packageLabel: pkg.label,
           autoRenew: pkg.autoRenew,
           polarSubscriptionId: params.polarSubscriptionId || original.polarSubscriptionId,
+          dodoSubscriptionId: params.dodoSubscriptionId || original.dodoSubscriptionId,
+          dodoCustomerId: params.dodoCustomerId || original.dodoCustomerId,
           updatedAt: now,
         },
       }
@@ -205,6 +219,10 @@ export async function fulfillPaidOrder(params: {
         polarOrderId: params.polarOrderId || purchase.polarOrderId,
         polarCheckoutId: params.polarCheckoutId || purchase.polarCheckoutId,
         polarSubscriptionId: params.polarSubscriptionId || purchase.polarSubscriptionId,
+        dodoPaymentId: params.dodoPaymentId || purchase.dodoPaymentId,
+        dodoSessionId: params.dodoSessionId || purchase.dodoSessionId,
+        dodoSubscriptionId: params.dodoSubscriptionId || purchase.dodoSubscriptionId,
+        dodoCustomerId: params.dodoCustomerId || purchase.dodoCustomerId,
         updatedAt: now,
       },
     }
@@ -214,7 +232,7 @@ export async function fulfillPaidOrder(params: {
     const user = await getUserById(purchase.userId)
     const details = {
       orderId: purchase.orderId,
-      polarOrderId: params.polarOrderId || purchase.polarOrderId,
+      providerRef: params.dodoPaymentId || params.polarOrderId || purchase.dodoPaymentId || purchase.polarOrderId,
       customerName: user?.name,
       customerEmail: user?.email,
       pixelCount: purchase.pixelCount || purchase.coordinates?.length || 0,
@@ -236,6 +254,8 @@ export async function fulfillPaidOrder(params: {
 export async function expireUnpaidOrder(params: {
   orderId?: string | null
   polarCheckoutId?: string | null
+  dodoSessionId?: string | null
+  dodoPaymentId?: string | null
   metadata?: Record<string, unknown>
 }): Promise<{ ok: boolean; reason?: string }> {
   const purchase = await findPurchase(params)
@@ -278,8 +298,8 @@ export async function expireStalePendingPurchases() {
   }
 }
 
-export async function revokeMembership(polarSubscriptionId: string) {
-  const purchase = await findPurchase({ polarSubscriptionId })
+export async function revokeMembership(subscriptionId: string) {
+  const purchase = await findPurchase({ polarSubscriptionId: subscriptionId, dodoSubscriptionId: subscriptionId })
   if (!purchase) return { ok: false, reason: 'not_found' }
 
   const db = await getDb()
