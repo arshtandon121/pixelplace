@@ -6,6 +6,7 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { LogOut, ExternalLink } from 'lucide-react'
 import PixelLogo from '@/components/PixelLogo'
+import CheckoutOverlay from '@/components/CheckoutOverlay'
 import { DEFAULT_PACKAGE_ID, formatExpiry, type MembershipPackageId } from '@/lib/membership'
 
 interface Pixel {
@@ -220,33 +221,18 @@ function DashboardContent() {
       const data = await res.json()
       if (!res.ok) {
         toast.error(data.error || 'Unable to start renewal')
+        setRenewingOrderId(null)
         return
       }
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl
-      }
-    } catch (error) {
-      toast.error('Unable to start renewal')
-    } finally {
-      setRenewingOrderId(null)
-    }
-  }
-
-  const openBillingPortal = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('/api/billing/portal', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const data = await res.json()
-      if (!res.ok || !data.url) {
-        toast.error(data.error || 'Billing portal unavailable')
         return
       }
-      window.location.href = data.url
+      toast.error('Checkout URL missing')
+      setRenewingOrderId(null)
     } catch (error) {
-      toast.error('Unable to open billing portal')
+      toast.error('Unable to start renewal')
+      setRenewingOrderId(null)
     }
   }
 
@@ -557,7 +543,7 @@ function DashboardContent() {
           <div className="flex items-end justify-between gap-4 mb-6">
             <div>
               <h3 className="text-xl text-[var(--ks-champagne)]">Listings</h3>
-              <p className="text-sm text-[var(--ks-muted)] mt-1">Logo, link, and how long it stays on the grid.</p>
+              <p className="text-sm text-[var(--ks-muted)] mt-1">Tap Renew to keep the same pixels and logo for another term.</p>
             </div>
           </div>
 
@@ -627,7 +613,6 @@ function DashboardContent() {
                             <dt className="ks-mono text-[var(--ks-faint)] mb-1">Plan</dt>
                             <dd className="text-[var(--ks-champagne)]">
                               {group.packageLabel || '—'}
-                              {group.autoRenew ? ' · auto-renew' : ''}
                             </dd>
                           </div>
                           <div>
@@ -658,12 +643,7 @@ function DashboardContent() {
                               disabled={renewingOrderId === group.orderId}
                               className="glass-button !py-2 !px-4 text-sm"
                             >
-                              {renewingOrderId === group.orderId ? 'Opening checkout…' : 'Renew'}
-                            </button>
-                          )}
-                          {group.status === 'completed' && group.autoRenew && (
-                            <button onClick={openBillingPortal} className="glass-button !py-2 !px-4 text-sm">
-                              Manage auto-renew
+                              {renewingOrderId === group.orderId ? 'Sending to checkout…' : 'Renew'}
                             </button>
                           )}
                           {group.status === 'completed' && (
@@ -855,6 +835,12 @@ function DashboardContent() {
             </div>
           </div>
         </div>
+      )}
+      {renewingOrderId && (
+        <CheckoutOverlay
+          title="Sending your renewal to checkout"
+          detail="Keep this tab open. You will be taken to Dodo Payments in a moment."
+        />
       )}
     </DashboardShell>
   )

@@ -67,8 +67,13 @@ export async function POST(request: NextRequest) {
 
       if (imageUrl.startsWith('data:image')) {
         try {
-          const { buffer } = base64ToBuffer(imageUrl)
-          imageFileId = await storeImage(buffer, `pixel_image_${decoded.userId}_${Date.now()}.png`)
+          const { buffer, contentType } = base64ToBuffer(imageUrl)
+          const isJpeg = contentType.includes('jpeg') || contentType.includes('jpg')
+          imageFileId = await storeImage(
+            buffer,
+            `pixel_image_${decoded.userId}_${Date.now()}.${isJpeg ? 'jpg' : 'png'}`,
+            contentType || (isJpeg ? 'image/jpeg' : 'image/png')
+          )
         } catch (error) {
           console.error('Image storage error:', error)
           return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })

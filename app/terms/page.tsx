@@ -83,7 +83,7 @@ export default function TermsPage() {
             An account is required. A listing only goes on the canvas after successful payment. PixelPlace can reject or remove a listing that breaks these rules, at any time, including after it is live. If we reject a listing, you can request a refund from the dashboard.
           </p>
           <p className="text-[var(--ks-muted)] text-[15px] leading-[1.7] mt-4">
-            You can end a listing from the dashboard, which takes the logo off the canvas. Listings expire on a set date. Month and year plans may auto-renew only as a repeat of the same advertising term, not as an investment.
+            You can end a listing from the dashboard, which takes the logo off the canvas. Listings expire on a set date. To keep the same pixels and logo up, pay again from the dashboard before the term ends. Renewal is another advertising term, not an investment.
           </p>
         </section>
 

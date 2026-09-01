@@ -10,7 +10,8 @@ import PixelLogo from '@/components/PixelLogo'
 import { GRID_SIZE, BLOCK_WIDTH, BLOCK_HEIGHT, BLOCKS_PER_ROW, BLOCKS_PER_COL } from '@/lib/constants'
 import { DEFAULT_PACKAGE_ID, MEMBERSHIP_PACKAGES, membershipPriceInr, type MembershipPackageId } from '@/lib/membership'
 import { ShoppingCart, Sparkles, Zap, Upload, X, Link as LinkIcon, CreditCard, ShieldCheck } from 'lucide-react'
-import ImageCropper from '@/components/ImageCropper'
+import ImageCropper, { prepareImageForCrop } from '@/components/ImageCropper'
+import CheckoutOverlay from '@/components/CheckoutOverlay'
 
 interface Pixel {
   x: number
@@ -36,6 +37,7 @@ export default function CanvasPage() {
   const [showCropper, setShowCropper] = useState(false)
   const [tempImage, setTempImage] = useState<string | null>(null)
   const [fitImage, setFitImage] = useState(false)
+  const [preparingImage, setPreparingImage] = useState(false)
 
   // Calculate available blocks
   const availableBlocks = useMemo(() => {
@@ -178,8 +180,22 @@ export default function CanvasPage() {
     }
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const listingSize = useMemo(() => {
+    if (selectedPixels.length === 0) return { aspect: 2, outputWidth: 480, outputHeight: 240 }
+    const xs = selectedPixels.map((p) => p.x)
+    const ys = selectedPixels.map((p) => p.y)
+    const cols = Math.max(...xs) - Math.min(...xs) + 1
+    const rows = Math.max(...ys) - Math.min(...ys) + 1
+    return {
+      aspect: cols / rows,
+      outputWidth: Math.min(800, Math.max(120, cols * 24)),
+      outputHeight: Math.min(800, Math.max(60, rows * 24)),
+    }
+  }, [selectedPixels])
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
@@ -187,21 +203,21 @@ export default function CanvasPage() {
       return
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image size should be less than 2MB')
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('Image should be under 8MB')
       return
     }
 
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setTempImage(reader.result as string)
+    setPreparingImage(true)
+    try {
+      const workingImage = await prepareImageForCrop(file)
+      setTempImage(workingImage)
       setShowCropper(true)
-    }
-    reader.onerror = () => {
+    } catch {
       toast.error('Failed to read image')
+    } finally {
+      setPreparingImage(false)
     }
-    reader.readAsDataURL(file)
-    e.target.value = ''
   }
 
   const startCheckout = async () => {
@@ -241,10 +257,10 @@ export default function CanvasPage() {
       }
 
       toast.error('Checkout URL missing')
+      setCheckoutLoading(false)
     } catch (error) {
       console.error('Checkout error:', error)
       toast.error('Something went wrong')
-    } finally {
       setCheckoutLoading(false)
     }
   }
@@ -360,7 +376,7 @@ export default function CanvasPage() {
 
                   <div className="space-y-2">
                     <label className="text-[10px] md:text-xs text-[#BF953F] uppercase tracking-widest font-bold">Membership</label>
-                    <p className="text-[9px] md:text-[10px] text-slate-500">1 hour minimum · 1 year maximum. Month and year auto-renew until you cancel.</p>
+                    <p className="text-[9px] md:text-[10px] text-slate-500">1 hour to 1 year. All terms are one-time. Renew the same listing from the dashboard before it ends.</p>
                     <div className="grid grid-cols-2 gap-1.5 md:gap-2">
                       {MEMBERSHIP_PACKAGES.map((opt) => (
                         <button
@@ -377,9 +393,7 @@ export default function CanvasPage() {
                               <span className={`text-[7px] uppercase tracking-wide ${packageId === opt.id ? 'text-black/60' : 'text-[#BF953F]'}`}>Best</span>
                             )}
                           </div>
-                          {opt.autoRenew && (
-                            <div className={`text-[8px] ${packageId === opt.id ? 'text-black/70' : 'text-emerald-400'}`}>Auto-renew</div>
-                          )}
+                          <div className={`text-[8px] font-medium mt-0.5 ${packageId === opt.id ? 'text-black/70' : 'text-slate-500'}`}>{opt.blurb}</div>
                         </button>
                       ))}
                     </div>
@@ -392,7 +406,7 @@ export default function CanvasPage() {
                         <div className="text-xl md:text-2xl font-bold text-[#FCF6BA] font-serif">
                           ₹{membershipPriceInr(selectedPixels.length, packageId).toLocaleString()}
                         </div>
-                        <div className="text-[9px] md:text-[10px] text-[#BF953F]">{selectedPackage.label}{selectedPackage.autoRenew ? ' · renews' : ''}</div>
+                        <div className="text-[9px] md:text-[10px] text-[#BF953F]">{selectedPackage.label}</div>
                       </div>
                     </div>
 
@@ -431,10 +445,11 @@ export default function CanvasPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => document.getElementById('image-upload')?.click()}
-                        className="flex-1 py-2.5 md:py-3 border border-dashed border-[#BF953F]/40 rounded-lg text-slate-400 hover:text-[#FCF6BA] hover:bg-[#BF953F]/10 transition-colors flex items-center justify-center gap-2 text-xs md:text-sm"
+                        disabled={preparingImage}
+                        className="flex-1 py-2.5 md:py-3 border border-dashed border-[#BF953F]/40 rounded-lg text-slate-400 hover:text-[#FCF6BA] hover:bg-[#BF953F]/10 transition-colors flex items-center justify-center gap-2 text-xs md:text-sm disabled:opacity-50"
                       >
                         <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                        {uploadedImage ? 'Change' : 'Select'}
+                        {preparingImage ? 'Opening…' : uploadedImage ? 'Change' : 'Select'}
                       </button>
                       {uploadedImage && (
                         <button
@@ -454,8 +469,9 @@ export default function CanvasPage() {
                       />
                     </div>
                     {uploadedImage && (
-                      <div className="mt-2 text-[10px] md:text-xs text-emerald-400 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> Image Ready
+                      <div className="mt-3 overflow-hidden rounded-lg border border-[#BF953F]/25 bg-black/40">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={uploadedImage} alt="Cropped logo preview" className="w-full h-20 object-contain" />
                       </div>
                     )}
                   </div>
@@ -588,20 +604,9 @@ export default function CanvasPage() {
         {showCropper && tempImage && (
           <ImageCropper
             imageSrc={tempImage}
-            aspect={
-              (() => {
-                const xs = selectedPixels.map(p => p.x)
-                const ys = selectedPixels.map(p => p.y)
-                const minX = Math.min(...xs)
-                const maxX = Math.max(...xs)
-                const minY = Math.min(...ys)
-                const maxY = Math.max(...ys)
-
-                const width = (maxX - minX + 1) * BLOCK_WIDTH
-                const height = (maxY - minY + 1) * BLOCK_HEIGHT
-                return width / height
-              })()
-            }
+            aspect={listingSize.aspect}
+            outputWidth={listingSize.outputWidth}
+            outputHeight={listingSize.outputHeight}
             onCropComplete={(croppedImage) => {
               setUploadedImage(croppedImage)
               setTempImage(null)
@@ -618,12 +623,14 @@ export default function CanvasPage() {
         {showPaymentModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
             <div className="bg-slate-900 border border-[#BF953F]/40 rounded-2xl w-full max-w-lg p-5 md:p-8 shadow-[0_0_50px_-10px_rgba(191,149,63,0.2)] relative max-h-[90vh] overflow-y-auto">
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="absolute top-3 right-3 md:top-4 md:right-4 text-slate-500 hover:text-white"
-              >
-                <X className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
+              {!checkoutLoading && (
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="absolute top-3 right-3 md:top-4 md:right-4 text-slate-500 hover:text-white"
+                >
+                  <X className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              )}
 
               <div className="text-center mb-5 md:mb-6">
                 <h3 className="text-xl md:text-2xl font-serif font-bold text-[#FCF6BA] mb-2">Checkout</h3>
@@ -641,8 +648,11 @@ export default function CanvasPage() {
                   </div>
                   <div className="flex justify-between text-slate-400">
                   <span>Membership</span>
-                  <span className="text-white">{selectedPackage.label}{selectedPackage.autoRenew ? ' · auto-renew' : ''}</span>
+                  <span className="text-white">{selectedPackage.label}</span>
                   </div>
+                  <p className="text-[11px] text-slate-500 pt-1">
+                    One-time payment for this term. Renew from the dashboard to keep the same pixels and logo.
+                  </p>
                 </div>
 
                 <div className="bg-[#BF953F]/10 p-4 rounded-xl border border-[#BF953F]/20 flex justify-between items-center text-sm">
@@ -668,11 +678,18 @@ export default function CanvasPage() {
                   className="w-full btn-luxury flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CreditCard className="w-4 h-4" />
-                  {checkoutLoading ? 'Redirecting to checkout…' : 'Pay securely'}
+                  {checkoutLoading ? 'Sending to checkout…' : 'Pay securely'}
                 </button>
               </div>
             </div>
           </div>
+        )}
+
+        {checkoutLoading && (
+          <CheckoutOverlay
+            title="Sending your listing to checkout"
+            detail="Keep this tab open. You will be taken to Dodo Payments in a moment."
+          />
         )}
       </div>
     </>

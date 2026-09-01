@@ -7,7 +7,7 @@ const features = [
     },
     {
         title: 'One hour to one year',
-        description: 'Hour, day, and week are one-time. Month and year can auto-renew until you cancel.',
+        description: 'Every term is a one-time payment. Before it ends, open the dashboard and tap Renew to keep the same pixels and logo.',
     },
     {
         title: 'Your link, your creative',

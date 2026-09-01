@@ -14,8 +14,8 @@ export const MEMBERSHIP_PACKAGES: MembershipPackage[] = [
   { id: 'hour', label: '1 Hour', blurb: 'Minimum listing', autoRenew: false },
   { id: 'day', label: '1 Day', blurb: 'Short campaign', autoRenew: false },
   { id: 'week', label: '1 Week', blurb: 'Weekly drop', autoRenew: false },
-  { id: 'month', label: '1 Month', blurb: 'Recommended listing', autoRenew: false, recommended: true },
-  { id: 'year', label: '1 Year', blurb: '2 months free', autoRenew: false },
+  { id: 'month', label: '1 Month', blurb: 'Renew from dashboard', autoRenew: false, recommended: true },
+  { id: 'year', label: '1 Year', blurb: '2 months free · renew from dashboard', autoRenew: false },
 ]
 
 export const DEFAULT_PACKAGE_ID: MembershipPackageId = 'month'
