@@ -29,6 +29,9 @@ export async function getPixel(x: number, y: number): Promise<Pixel | null> {
 }
 
 export async function getPixelsByUser(userId: string): Promise<Pixel[]> {
+  const { expireStalePendingPurchases } = await import('./orders')
+  await expireStalePendingPurchases()
+
   const db = await getDb()
   const now = new Date()
   // Don't fetch imageUrl - it contains large base64 strings that slow down queries

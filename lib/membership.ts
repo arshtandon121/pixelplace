@@ -1,4 +1,4 @@
-import { PIXEL_PRICE_PER_MONTH } from '@/lib/constants'
+import { MIN_CHECKOUT_INR, PIXEL_PRICE_PER_MONTH } from '@/lib/constants'
 
 export type MembershipPackageId = 'hour' | 'day' | 'week' | 'month' | 'year'
 
@@ -19,7 +19,6 @@ export const MEMBERSHIP_PACKAGES: MembershipPackage[] = [
 ]
 
 export const DEFAULT_PACKAGE_ID: MembershipPackageId = 'month'
-export const POLAR_MIN_INR = 60
 
 export function getMembershipPackage(id?: string | null): MembershipPackage {
   return MEMBERSHIP_PACKAGES.find((p) => p.id === id) || MEMBERSHIP_PACKAGES.find((p) => p.id === DEFAULT_PACKAGE_ID)!
@@ -34,7 +33,7 @@ export function membershipPriceInr(pixelCount: number, packageId: MembershipPack
     month: monthly,
     year: monthly * 10,
   }[packageId]
-  return Math.max(POLAR_MIN_INR, Math.round(raw * 100) / 100)
+  return Math.max(MIN_CHECKOUT_INR, Math.round(raw * 100) / 100)
 }
 
 export function addMembershipDuration(from: Date, packageId: MembershipPackageId): Date {

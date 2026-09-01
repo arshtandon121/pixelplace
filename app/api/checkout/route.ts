@@ -10,6 +10,46 @@ import {
   membershipPriceInr,
   type MembershipPackageId,
 } from '@/lib/membership'
+import { fulfillPaidOrder } from '@/lib/orders'
+
+async function createDodoSession(params: {
+  user: { email: string; name: string }
+  orderId: string
+  userId: string
+  pixelCount: number
+  packageId: string
+  totalAmount: number
+  renewOrderId?: string
+  cancelPath?: string
+}) {
+  const appUrl = getAppUrl()
+  const dodo = getDodo()
+  return dodo.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: getDodoProductId(),
+        quantity: 1,
+        amount: toDodoAmount(params.totalAmount),
+      },
+    ],
+    customer: {
+      email: params.user.email,
+      name: params.user.name,
+    },
+    billing_currency: 'INR',
+    return_url: `${appUrl}/dashboard`,
+    cancel_url: `${appUrl}${params.cancelPath || '/canvas'}`,
+    customization: { theme: 'dark' },
+    feature_flags: { redirect_immediately: true },
+    metadata: {
+      order_id: params.orderId,
+      user_id: params.userId,
+      pixel_count: String(params.pixelCount),
+      package_id: params.packageId,
+      ...(params.renewOrderId ? { renew_order_id: String(params.renewOrderId) } : {}),
+    },
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,11 +70,73 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { imageUrl, linkUrl, renewOrderId, packageId: rawPackageId } = body
+    const { imageUrl, linkUrl, renewOrderId, resumeOrderId, packageId: rawPackageId } = body
     const pkg = getMembershipPackage(rawPackageId)
     const packageId = pkg.id as MembershipPackageId
 
     const db = await getDb()
+
+    if (resumeOrderId) {
+      const purchase = await db.collection('purchases').findOne({
+        orderId: resumeOrderId,
+        userId: decoded.userId,
+        status: 'pending',
+      })
+      if (!purchase) {
+        return NextResponse.json({ error: 'No unpaid listing found' }, { status: 404 })
+      }
+
+      if (purchase.dodoSessionId) {
+        try {
+          const existing = await getDodo().checkoutSessions.retrieve(purchase.dodoSessionId)
+          const paymentId = existing.payment_id
+          if (existing.payment_status === 'succeeded' || paymentId) {
+            const payment = paymentId ? await getDodo().payments.retrieve(paymentId) : null
+            if (payment?.status === 'succeeded' || existing.payment_status === 'succeeded') {
+              await fulfillPaidOrder({
+                orderId: purchase.orderId,
+                dodoPaymentId: payment?.payment_id,
+                dodoSessionId: purchase.dodoSessionId,
+                dodoSubscriptionId: payment?.subscription_id,
+                dodoCustomerId: payment?.customer?.customer_id,
+                metadata: (payment?.metadata || {}) as Record<string, unknown>,
+              })
+              return NextResponse.json({ success: true, fulfilled: true })
+            }
+          }
+        } catch (error) {
+          console.error('Resume checkout lookup failed:', error)
+        }
+      }
+
+      try {
+        const session = await createDodoSession({
+          user,
+          orderId: purchase.orderId,
+          userId: decoded.userId,
+          pixelCount: purchase.pixelCount || purchase.coordinates?.length || 0,
+          packageId: purchase.packageId || packageId,
+          totalAmount: purchase.amount || membershipPriceInr(purchase.coordinates?.length || 0, purchase.packageId || packageId),
+          cancelPath: '/dashboard',
+        })
+        await db.collection('purchases').updateOne(
+          { orderId: purchase.orderId },
+          { $set: { dodoSessionId: session.session_id, dodoCheckoutUrl: session.checkout_url, updatedAt: new Date() } }
+        )
+        if (!session.checkout_url) {
+          throw new Error('Dodo checkout URL missing')
+        }
+        return NextResponse.json({
+          success: true,
+          orderId: purchase.orderId,
+          checkoutUrl: session.checkout_url,
+          checkoutId: session.session_id,
+        })
+      } catch (error) {
+        console.error('Resume checkout create failed:', error)
+        return NextResponse.json({ error: 'Unable to reopen checkout. Please try again.' }, { status: 502 })
+      }
+    }
     let pixels = body.pixels
     let imageFileId: string | undefined
     let finalImageUrl: string | undefined

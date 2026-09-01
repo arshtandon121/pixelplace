@@ -148,7 +148,7 @@ function isExpired(expiresAt?: Date) {
 
 function statusCopy(group: ListingGroup) {
   if (group.status === 'pending') {
-    return { label: 'Payment pending', hint: 'Payment is still confirming. Your listing goes live after it clears.' }
+    return { label: 'Unpaid', hint: 'These pixels are held for you. Finish payment to go live, or release them so someone else can take them.' }
   }
   if (group.status === 'rejected') {
     return { label: 'Not approved', hint: group.rejectionReason || 'This listing was not approved. You can request a refund.' }
@@ -161,7 +161,8 @@ function statusCopy(group: ListingGroup) {
 
 function orderStatusLabel(status?: string) {
   if (status === 'completed') return 'Paid'
-  if (status === 'pending') return 'Confirming'
+  if (status === 'pending') return 'Unpaid'
+  if (status === 'expired') return 'Cancelled'
   if (status === 'rejected') return 'Not approved'
   return status || '—'
 }
@@ -188,6 +189,7 @@ function DashboardContent() {
   const [newLink, setNewLink] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
   const [renewingOrderId, setRenewingOrderId] = useState<string | null>(null)
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null)
 
   const listings = useMemo(() => buildListingGroups(pixels, purchases), [pixels, purchases])
   const orders = useMemo(
@@ -202,6 +204,81 @@ function DashboardContent() {
     const ms = new Date(g.expiresAt).getTime() - Date.now()
     return ms > 0 && ms < 7 * 24 * 60 * 60 * 1000
   })
+
+  const refreshListings = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const [pixelsRes, purchasesRes] = await Promise.all([
+      fetch('/api/pixels/user', { headers: { Authorization: `Bearer ${token}` } }),
+      fetch('/api/purchases', { headers: { Authorization: `Bearer ${token}` } }),
+    ])
+    const pixelsData = await pixelsRes.json()
+    const purchasesData = await purchasesRes.json()
+    if (pixelsData.pixels) setPixels(pixelsData.pixels)
+    if (purchasesData.purchases) setPurchases(purchasesData.purchases)
+  }
+
+  const startResumePayment = async (orderId: string) => {
+    setRenewingOrderId(orderId)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ resumeOrderId: orderId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Unable to reopen checkout')
+        setRenewingOrderId(null)
+        return
+      }
+      if (data.fulfilled) {
+        toast.success('Payment already went through. Your listing is live.')
+        setRenewingOrderId(null)
+        await refreshListings()
+        return
+      }
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+        return
+      }
+      toast.error('Checkout URL missing')
+      setRenewingOrderId(null)
+    } catch (error) {
+      toast.error('Unable to reopen checkout')
+      setRenewingOrderId(null)
+    }
+  }
+
+  const cancelPendingOrder = async (orderId: string) => {
+    setCancellingOrderId(orderId)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/checkout/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Unable to release these pixels')
+        return
+      }
+      toast.success('Pixels released. You can place them again from the canvas.')
+      await refreshListings()
+    } catch (error) {
+      toast.error('Unable to release these pixels')
+    } finally {
+      setCancellingOrderId(null)
+    }
+  }
 
   const startRenewal = async (orderId: string, packageId?: MembershipPackageId) => {
     setRenewingOrderId(orderId)
@@ -527,8 +604,8 @@ function DashboardContent() {
           <div className="ks-plinth p-5 md:p-6">
             {pendingCount > 0 && (
               <p className="text-[15px] text-[var(--ks-champagne)]">
-                {pendingCount === 1 ? 'One listing is waiting on payment.' : `${pendingCount} listings are waiting on payment.`}{' '}
-                It goes live as soon as payment confirms.
+                {pendingCount === 1 ? 'One listing is unpaid.' : `${pendingCount} listings are unpaid.`}{' '}
+                Finish payment to put it on the canvas, or release the pixels.
               </p>
             )}
             {expiringSoon && (
@@ -543,7 +620,7 @@ function DashboardContent() {
           <div className="flex items-end justify-between gap-4 mb-6">
             <div>
               <h3 className="text-xl text-[var(--ks-champagne)]">Listings</h3>
-              <p className="text-sm text-[var(--ks-muted)] mt-1">Tap Renew to keep the same pixels and logo for another term.</p>
+              <p className="text-sm text-[var(--ks-muted)] mt-1">Live listings can be renewed. Unpaid holds can be paid or released.</p>
             </div>
           </div>
 
@@ -616,8 +693,10 @@ function DashboardContent() {
                             </dd>
                           </div>
                           <div>
-                            <dt className="ks-mono text-[var(--ks-faint)] mb-1">Ends</dt>
-                            <dd className="text-[var(--ks-champagne)]">{formatExpiry(group.expiresAt)}</dd>
+                            <dt className="ks-mono text-[var(--ks-faint)] mb-1">{group.status === 'pending' ? 'Hold' : 'Ends'}</dt>
+                            <dd className="text-[var(--ks-champagne)]">
+                              {group.status === 'pending' ? 'Not live yet' : formatExpiry(group.expiresAt)}
+                            </dd>
                           </div>
                           <div>
                             <dt className="ks-mono text-[var(--ks-faint)] mb-1">Website</dt>
@@ -626,6 +705,24 @@ function DashboardContent() {
                         </dl>
 
                         <div className="flex flex-wrap gap-2 pt-1">
+                          {group.status === 'pending' && group.orderId && (
+                            <>
+                              <button
+                                onClick={() => startResumePayment(group.orderId!)}
+                                disabled={renewingOrderId === group.orderId}
+                                className="btn-luxury !py-2 !px-4 text-sm"
+                              >
+                                {renewingOrderId === group.orderId ? 'Sending to checkout…' : 'Finish payment'}
+                              </button>
+                              <button
+                                onClick={() => cancelPendingOrder(group.orderId!)}
+                                disabled={cancellingOrderId === group.orderId}
+                                className="glass-button !py-2 !px-4 text-sm"
+                              >
+                                {cancellingOrderId === group.orderId ? 'Releasing…' : 'Release pixels'}
+                              </button>
+                            </>
+                          )}
                           {group.status === 'completed' && (
                             <button
                               onClick={() => {
@@ -838,7 +935,7 @@ function DashboardContent() {
       )}
       {renewingOrderId && (
         <CheckoutOverlay
-          title="Sending your renewal to checkout"
+          title="Sending you to checkout"
           detail="Keep this tab open. You will be taken to Dodo Payments in a moment."
         />
       )}
