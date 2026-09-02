@@ -38,13 +38,16 @@
 
 html {
   background: var(--ks-lacquer);
+  overflow-x: hidden;
 }
 
 body {
   color: var(--ks-text);
   background: var(--ks-lacquer);
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
+  max-width: 100%;
   font-family: var(--font-sans), 'Avenir Next', Helvetica, Arial, sans-serif;
 }
 
@@ -213,7 +216,15 @@ body {
   .ks-section {
     max-width: 1320px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  @media (min-width: 640px) {
+    .ks-section {
+      padding-left: 24px;
+      padding-right: 24px;
+    }
   }
 
   .ks-input {
@@ -224,6 +235,7 @@ body {
     border-radius: 4px;
     color: var(--ks-champagne);
     outline: none;
+    font-size: 16px;
     transition: border-color 0.2s var(--ks-ease);
   }
 

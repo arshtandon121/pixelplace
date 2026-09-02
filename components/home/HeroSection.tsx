@@ -16,11 +16,11 @@ export default function HeroSection() {
                 After payment, the listing is live — from one hour to one year.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-                <Link href="/canvas" className="btn-luxury gap-2">
+                <Link href="/canvas" className="btn-luxury gap-2 w-full sm:w-auto">
                     Place your brand
                     <ArrowRight className="w-4 h-5" />
                 </Link>
-                <Link href="#how-it-works" className="glass-button inline-flex items-center justify-center">
+                <Link href="#how-it-works" className="glass-button inline-flex items-center justify-center w-full sm:w-auto">
                     How it works
                 </Link>
             </div>

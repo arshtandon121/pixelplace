@@ -286,7 +286,7 @@ export default function CanvasPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-black text-white p-4 pb-20 relative overflow-x-hidden">
+      <div className="min-h-screen bg-black text-white p-3 sm:p-4 pb-16 sm:pb-20 relative overflow-x-hidden">
         {/* Background Ambience */}
         <div className="fixed inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#BF953F]/5 rounded-full blur-[120px]" />
@@ -328,8 +328,8 @@ export default function CanvasPage() {
 
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 md:mb-8 bg-gold-glass p-3 md:p-4 rounded-xl sticky top-2 md:top-4 z-40 shadow-2xl">
-          <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto">
-            <PixelLogo size="md" />
+          <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto min-w-0">
+            <PixelLogo size="sm" />
             <div className="hidden md:block h-8 w-px bg-[#BF953F]/30" />
             <h1 className="hidden md:block text-lg lg:text-xl font-bold font-serif text-[#FCF6BA]">
               Live pixel canvas
@@ -358,7 +358,7 @@ export default function CanvasPage() {
         <div className="flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 relative z-10">
 
           {/* Left Panel: Controls */}
-          <div className="lg:w-80 flex-shrink-0 space-y-4 md:space-y-6">
+          <div className="lg:w-80 flex-shrink-0 space-y-4 md:space-y-6 order-2 lg:order-1">
             {/* Status Card */}
             <div className="glass-panel p-4 md:p-6 border-gold relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-[#BF953F]/5 to-transparent pointer-events-none" />
@@ -527,7 +527,7 @@ export default function CanvasPage() {
           </div>
 
           {/* Center: Canvas */}
-          <div className="flex-1 min-w-0 relative">
+          <div className="flex-1 min-w-0 relative order-1 lg:order-2">
             {/* Floating 3D Decorative Elements */}
             <div className="absolute -top-10 -right-10 w-20 h-20 opacity-10 pointer-events-none">
               <motion.div
@@ -562,7 +562,7 @@ export default function CanvasPage() {
               />
             </div>
 
-            <div className="glass-panel p-1.5 md:p-2 border-[#BF953F]/20 shadow-[0_0_50px_-10px_rgba(191,149,63,0.1)] relative">
+            <div className="glass-panel p-1.5 md:p-2 border-[#BF953F]/20 shadow-[0_0_50px_-10px_rgba(191,149,63,0.1)] relative overflow-hidden">
               <PixelGrid
                 ownedPixels={ownedPixels}
                 selectedPixels={selectedPixels}
@@ -575,7 +575,7 @@ export default function CanvasPage() {
               />
             </div>
 
-            <div className="flex justify-between items-center mt-3 md:mt-4">
+            <div className="flex justify-between items-center gap-2 mt-3 md:mt-4">
               <label className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-[#FCF6BA] cursor-pointer hover:opacity-80 transition-opacity p-1.5 md:p-2 bg-black/40 rounded-lg border border-[#BF953F]/20">
                 <input
                   type="checkbox"
@@ -621,8 +621,8 @@ export default function CanvasPage() {
 
         {/* Payment Modal */}
         {showPaymentModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
-            <div className="bg-slate-900 border border-[#BF953F]/40 rounded-2xl w-full max-w-lg p-5 md:p-8 shadow-[0_0_50px_-10px_rgba(191,149,63,0.2)] relative max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md p-0 sm:p-4 animate-fade-in">
+            <div className="bg-slate-900 border border-[#BF953F]/40 rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 md:p-8 shadow-[0_0_50px_-10px_rgba(191,149,63,0.2)] relative max-h-[92dvh] overflow-y-auto">
               {!checkoutLoading && (
                 <button
                   onClick={() => setShowPaymentModal(false)}

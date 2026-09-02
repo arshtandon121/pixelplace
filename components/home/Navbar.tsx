@@ -22,8 +22,13 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
     return (
         <nav className={`fixed top-0 left-0 right-0 z-50 transition-[background,border-color] duration-500 ${isScrolled ? 'bg-[var(--ks-lacquer)]/92 backdrop-blur-md border-b border-[var(--ks-rule)]' : 'bg-transparent'}`}>
-            <div className="ks-section py-4 flex justify-between items-center">
-                <PixelLogo size="md" />
+            <div className="ks-section py-4 flex justify-between items-center gap-3">
+                <div className="md:hidden">
+                    <PixelLogo size="sm" />
+                </div>
+                <div className="hidden md:block">
+                    <PixelLogo size="md" />
+                </div>
 
                 <div className="hidden md:flex items-center gap-7">
                     <button
@@ -52,7 +57,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
                 <button
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                    className="md:hidden p-2 text-[var(--ks-champagne)]"
+                    className="md:hidden p-2 -mr-1 text-[var(--ks-champagne)] min-h-11 min-w-11 inline-flex items-center justify-center"
                 >
                     {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </button>
@@ -67,13 +72,13 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                         className="md:hidden bg-[var(--ks-lacquer)] border-t border-[var(--ks-rule)] overflow-hidden"
                     >
                         <div className="ks-section py-6 flex flex-col gap-4">
-                            <Link href="/#live-canvas" className="ks-mono text-[var(--ks-champagne)]" onClick={() => setIsMobileMenuOpen(false)}>Live canvas</Link>
-                            <Link href="/canvas" className="ks-mono text-[var(--ks-champagne)]" onClick={() => setIsMobileMenuOpen(false)}>Place a listing</Link>
+                            <Link href="/#live-canvas" className="ks-mono text-[var(--ks-champagne)] py-2" onClick={() => setIsMobileMenuOpen(false)}>Live canvas</Link>
                             {isLoggedIn ? (
-                                <Link href="/dashboard" className="ks-mono text-[var(--ks-champagne)]" onClick={() => setIsMobileMenuOpen(false)}>Dashboard</Link>
+                                <Link href="/dashboard" className="ks-mono text-[var(--ks-champagne)] py-2" onClick={() => setIsMobileMenuOpen(false)}>Dashboard</Link>
                             ) : (
-                                <Link href="/login" className="ks-mono text-[var(--ks-champagne)]" onClick={() => setIsMobileMenuOpen(false)}>Login</Link>
+                                <Link href="/login" className="ks-mono text-[var(--ks-champagne)] py-2" onClick={() => setIsMobileMenuOpen(false)}>Login</Link>
                             )}
+                            <Link href="/canvas" className="btn-luxury w-full" onClick={() => setIsMobileMenuOpen(false)}>Place a listing</Link>
                         </div>
                     </motion.div>
                 )}

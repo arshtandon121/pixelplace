@@ -7,6 +7,7 @@ export const GRID_SIZE = 50
 
 // Next.js only inlines NEXT_PUBLIC_ vars with a static process.env.NEXT_PUBLIC_* read.
 export const PIXEL_PRICE_PER_MONTH = envNumber(process.env.NEXT_PUBLIC_PIXEL_PRICE_PER_MONTH, 10)
+// 1-hour price for one 50-pixel block. Day = 24× this, week = 7 days, month = 30 days.
 export const MIN_CHECKOUT_INR = envNumber(process.env.NEXT_PUBLIC_MIN_CHECKOUT_INR, 60)
 
 export const BLOCK_WIDTH = 10 // Block selection width

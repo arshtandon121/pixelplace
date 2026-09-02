@@ -55,17 +55,15 @@ export default function AuthShell({
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             className="ks-plinth p-2 w-full max-w-[460px]"
           >
-            <div className="relative overflow-hidden bg-[var(--ks-lacquer)] h-[320px]">
-              <div className="origin-top-left scale-[0.52]">
-                <PixelGrid
-                  ownedPixels={ownedPixels}
-                  selectedPixels={[]}
-                  onPixelClick={() => {}}
-                  onPixelHover={() => {}}
-                  previewImage={null}
-                  showTooltip={false}
-                />
-              </div>
+            <div className="relative overflow-hidden bg-[var(--ks-lacquer)]">
+              <PixelGrid
+                ownedPixels={ownedPixels}
+                selectedPixels={[]}
+                onPixelClick={() => {}}
+                onPixelHover={() => {}}
+                previewImage={null}
+                showTooltip={false}
+              />
               {ownedPixels.length === 0 && (
                 <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 600 600" aria-hidden>
                   {SAMPLE_MARKS.map((mark, i) => (
@@ -103,7 +101,7 @@ export default function AuthShell({
         <p className="ks-mono text-[var(--ks-faint)] relative z-10">50 × 50 · brand display</p>
       </aside>
 
-      <main className="flex items-center justify-center p-6 sm:p-10">
+      <main className="flex items-center justify-center p-5 sm:p-10 pt-8 sm:pt-10">
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -111,7 +109,7 @@ export default function AuthShell({
           className="w-full max-w-[420px]"
         >
           <div className="lg:hidden mb-8">
-            <PixelLogo size="md" />
+            <PixelLogo size="sm" />
           </div>
           <h1 className="ks-headline mb-2">{title}</h1>
           <p className="text-[var(--ks-muted)] text-sm mb-8">{subtitle}</p>

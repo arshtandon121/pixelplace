@@ -555,22 +555,22 @@ function DashboardContent() {
   return (
     <DashboardShell>
       <header className="border-b border-[var(--ks-rule)]">
-        <div className="ks-section py-4 flex justify-between items-center gap-4">
+        <div className="ks-section py-3 sm:py-4 flex justify-between items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <PixelLogo size="sm" />
             <span className="hidden sm:block h-6 w-px bg-[var(--ks-rule)]" />
             <h1 className="hidden sm:block text-sm text-[var(--ks-muted)]">Your listings</h1>
           </div>
-          <div className="flex items-center gap-4 sm:gap-6">
-            <Link href="/canvas" className="ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)]">
+          <div className="flex items-center gap-2 sm:gap-6 shrink-0">
+            <Link href="/canvas" className="hidden sm:inline ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)]">
               Canvas
             </Link>
-            <Link href="/canvas" className="btn-luxury !py-2 !px-4 text-sm">
+            <Link href="/canvas" className="btn-luxury !py-2 !px-3 sm:!px-4 text-xs sm:text-sm whitespace-nowrap">
               Place a listing
             </Link>
             <button
               onClick={handleLogout}
-              className="ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)] flex items-center gap-2"
+              className="ks-mono text-[var(--ks-muted)] hover:text-[var(--ks-champagne)] flex items-center gap-2 min-h-10"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Sign out</span>

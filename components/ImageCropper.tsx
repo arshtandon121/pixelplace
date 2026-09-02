@@ -106,8 +106,8 @@ export default function ImageCropper({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--ks-lacquer)]/85 p-4">
-      <div className="ks-plinth w-full max-w-lg overflow-hidden bg-[var(--ks-raised)]">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-[var(--ks-lacquer)]/85 p-0 sm:p-4">
+      <div className="ks-plinth w-full sm:max-w-lg overflow-hidden bg-[var(--ks-raised)] max-h-[100dvh] sm:max-h-[92vh] rounded-t-lg sm:rounded">
         <div className="px-5 py-4 border-b border-[var(--ks-rule)] flex justify-between items-center">
           <div>
             <h3 className="text-[var(--ks-champagne)] text-lg">Fit your logo</h3>

@@ -18,15 +18,15 @@ export default function CanvasPreview({ ownedPixels }: CanvasPreviewProps) {
 
     return (
         <div id="live-canvas" className="w-full">
-            <div className="flex items-end justify-between gap-4 mb-3">
-                <p className="ks-mono text-[var(--ks-muted)]">
+            <div className="flex items-end justify-between gap-3 mb-3 flex-wrap">
+                <p className="ks-mono text-[var(--ks-muted)] leading-relaxed">
                     {GRID_SIZE} × {GRID_SIZE}
-                    <span className="mx-3 text-[var(--ks-rule-strong)]">/</span>
+                    <span className="mx-2 sm:mx-3 text-[var(--ks-rule-strong)]">/</span>
                     {livePixels} live
-                    <span className="mx-3 text-[var(--ks-rule-strong)]">/</span>
+                    <span className="mx-2 sm:mx-3 text-[var(--ks-rule-strong)]">/</span>
                     {available.toLocaleString()} open
                 </p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                     <span className="ks-mono inline-flex items-center gap-2 text-[var(--ks-patina-text)]">
                         <span className="relative flex h-1.5 w-1.5">
                             <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--ks-patina)] opacity-60" />
@@ -46,17 +46,15 @@ export default function CanvasPreview({ ownedPixels }: CanvasPreviewProps) {
                 transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
                 className="ks-plinth p-2 sm:p-3"
             >
-                <div className="flex justify-center overflow-hidden h-[330px] min-[400px]:h-[390px] sm:h-[490px] md:h-auto bg-[var(--ks-lacquer)]">
-                    <div className="origin-top scale-[0.52] min-[400px]:scale-[0.62] sm:scale-[0.78] md:scale-100">
-                        <PixelGrid
-                            ownedPixels={ownedPixels}
-                            selectedPixels={[]}
-                            onPixelClick={() => router.push('/canvas')}
-                            onPixelHover={() => { }}
-                            previewImage={null}
-                            showTooltip={false}
-                        />
-                    </div>
+                <div className="bg-[var(--ks-lacquer)] overflow-hidden">
+                    <PixelGrid
+                        ownedPixels={ownedPixels}
+                        selectedPixels={[]}
+                        onPixelClick={() => router.push('/canvas')}
+                        onPixelHover={() => { }}
+                        previewImage={null}
+                        showTooltip={false}
+                    />
                 </div>
             </motion.div>
         </div>

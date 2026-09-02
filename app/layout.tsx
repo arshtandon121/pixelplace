@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Alumni_Sans, Albert_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
@@ -21,6 +21,12 @@ const mono = JetBrains_Mono({
   weight: ['400', '500'],
   variable: '--font-mono',
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.pixelplace.in'),
@@ -58,7 +64,7 @@ export default function RootLayout({
       <body className={`${display.variable} ${sans.variable} ${mono.variable} font-sans md:cursor-none`}>
         <CustomCursor />
         {children}
-        <Toaster position="top-right" />
+        <Toaster position="top-center" containerStyle={{ top: 12 }} />
         <Analytics />
       </body>
     </html>

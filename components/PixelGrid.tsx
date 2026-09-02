@@ -208,10 +208,10 @@ export default function PixelGrid({
             const maxY = Math.max(...ys)
 
             overlays.push({
-              left: minX * 12 + 8,
-              top: minY * 12 + 8,
-              width: (maxX - minX + 1) * 12,
-              height: (maxY - minY + 1) * 12,
+              left: (minX / GRID_SIZE) * 100,
+              top: (minY / GRID_SIZE) * 100,
+              width: ((maxX - minX + 1) / GRID_SIZE) * 100,
+              height: ((maxY - minY + 1) / GRID_SIZE) * 100,
               imageUrl: group.imageUrl,
               imageFileId: group.imageFileId,
               linkUrl: group.linkUrl,
@@ -302,12 +302,11 @@ export default function PixelGrid({
         if (p.y > maxY) maxY = p.y
       }
 
-      // Calculate position and size (each pixel is 12px)
       return {
-        left: minX * 12 + 8, // 8px padding from container
-        top: minY * 12 + 8,
-        width: (maxX - minX + 1) * 12,
-        height: (maxY - minY + 1) * 12,
+        left: (minX / GRID_SIZE) * 100,
+        top: (minY / GRID_SIZE) * 100,
+        width: ((maxX - minX + 1) / GRID_SIZE) * 100,
+        height: ((maxY - minY + 1) / GRID_SIZE) * 100,
       }
     })
   }, [previewImage, getContiguousBlocks])
@@ -315,13 +314,11 @@ export default function PixelGrid({
   const { playSound } = useAudio()
 
   return (
-    <div className="inline-block border border-white/10 rounded-lg p-2 bg-slate-900/50 backdrop-blur-sm relative" style={{ position: 'relative' }}>
+    <div className="relative w-full max-w-[600px] mx-auto">
       <div
-        className="grid gap-0 select-none relative z-0"
+        className="grid w-full aspect-square select-none relative z-0 touch-manipulation"
         style={{
           gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-          width: `${GRID_SIZE * 12}px`,
-          position: 'relative',
         }}
       >
         {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
@@ -335,11 +332,7 @@ export default function PixelGrid({
           return (
             <div
               key={`${x}-${y}`}
-              className={`${pixelColor} cursor-pointer relative overflow-hidden`}
-              style={{
-                width: '12px',
-                height: '12px',
-              }}
+              className={`${pixelColor} cursor-pointer relative overflow-hidden min-w-0 min-h-0`}
               onClick={(e) => {
                 if (!owned) {
                   onPixelClick(x, y)
@@ -382,7 +375,7 @@ export default function PixelGrid({
             initial={{ opacity: 0, scale: 0.9, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 10 }}
-            className="absolute z-[100] w-64 bg-slate-900/90 backdrop-blur-2xl border border-[#BF953F]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden pointer-events-auto"
+            className="absolute z-[100] hidden md:block w-64 max-w-[calc(100%-1rem)] bg-slate-900/90 backdrop-blur-2xl border border-[#BF953F]/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden pointer-events-auto"
             style={{
               left: tooltipData.x,
               bottom: `calc(100% - ${tooltipData.y}px + 20px)`,
@@ -465,10 +458,10 @@ export default function PixelGrid({
           key={`preview-${index}`}
           className="absolute z-20 pointer-events-none border-2 border-yellow-400 border-dashed"
           style={{
-            left: `${overlay.left}px`,
-            top: `${overlay.top}px`,
-            width: `${overlay.width}px`,
-            height: `${overlay.height}px`,
+            left: `${overlay.left}%`,
+            top: `${overlay.top}%`,
+            width: `${overlay.width}%`,
+            height: `${overlay.height}%`,
           }}
         >
           <img
@@ -490,10 +483,10 @@ export default function PixelGrid({
             key={`owned-${overlay.imageFileId || overlay.imageUrl || index}-${index}`}
             className="absolute z-10 pointer-events-auto cursor-pointer hover:opacity-90 transition-opacity"
             style={{
-              left: `${overlay.left}px`,
-              top: `${overlay.top}px`,
-              width: `${overlay.width}px`,
-              height: `${overlay.height}px`,
+              left: `${overlay.left}%`,
+              top: `${overlay.top}%`,
+              width: `${overlay.width}%`,
+              height: `${overlay.height}%`,
               backgroundColor: 'transparent',
             }}
             onClick={() => {
