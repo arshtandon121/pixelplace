@@ -6,6 +6,7 @@ export interface Pixel {
   x: number
   y: number
   userId?: string
+  username?: string
   imageUrl?: string
   imageFileId?: string // GridFS file ID for large images
   linkUrl?: string
@@ -65,6 +66,9 @@ export async function getPixelsByUser(userId: string): Promise<Pixel[]> {
 export async function getAllPixels(): Promise<Pixel[]> {
   const { expireStalePendingPurchases } = await import('./orders')
   await expireStalePendingPurchases()
+  await import('./operatorListings').then((m) => m.ensureHouseListings()).catch((error) => {
+    console.error('House listings seed failed:', error)
+  })
 
   const db = await getDb()
   const now = new Date()
@@ -100,6 +104,7 @@ export async function getAllPixels(): Promise<Pixel[]> {
           userId: 1,
           linkUrl: 1,
           imageFileId: 1,
+          username: 1,
           // Only include imageUrl if it's small (less than 50KB base64 = ~37KB actual)
           // For larger images, they should be in GridFS
           imageUrl: {
